@@ -38,19 +38,16 @@ class SyncEngine:
     def _flush_staging(self, page_buf: list[dict], run_id: str, seq: int) -> None:  # type: ignore[type-arg]
         if not self._staging_dir:
             return
-        try:
-            from tikitaka_dwh.transform.documents import build_documents, write_documents_staging
-            from tikitaka_dwh.transform.sale_lines import build_sale_lines, write_sale_lines_staging
-            from tikitaka_dwh.transform.payments import build_payments, write_payments_staging
+        from tikitaka_dwh.transform.documents import build_documents, write_documents_staging
+        from tikitaka_dwh.transform.sale_lines import build_sale_lines, write_sale_lines_staging
+        from tikitaka_dwh.transform.payments import build_payments, write_payments_staging
 
-            df_docs = build_documents(page_buf)
-            write_documents_staging(df_docs, self._staging_dir, run_id, seq)
-            df_lines = build_sale_lines(page_buf)
-            write_sale_lines_staging(df_lines, self._staging_dir, run_id, seq)
-            df_pmts = build_payments(page_buf)
-            write_payments_staging(df_pmts, self._staging_dir, run_id, seq)
-        except Exception:
-            logger.warning("Staging Parquet write failed for seq=%d — continuing.", seq, exc_info=True)
+        df_docs = build_documents(page_buf)
+        write_documents_staging(df_docs, self._staging_dir, run_id, seq)
+        df_lines = build_sale_lines(page_buf)
+        write_sale_lines_staging(df_lines, self._staging_dir, run_id, seq)
+        df_pmts = build_payments(page_buf)
+        write_payments_staging(df_pmts, self._staging_dir, run_id, seq)
 
     async def run_backfill(
         self,

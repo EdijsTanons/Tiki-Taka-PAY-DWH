@@ -71,7 +71,10 @@ def load_staging_to_warehouse(
     df_pmts = _read_parquet_dir(staging_dir, "payments")
 
     if df_docs.empty:
-        # Fallback: re-transform from raw JSON (first run before staging exists)
+        # Fallback: no staging Parquet at all (e.g. staging_dir was never written).
+        # NOTE: this branch is intentionally not reached when only *some* pages failed
+        # staging — that case is prevented upstream by letting staging errors fail the
+        # sync so the watermark never advances past un-staged data.
         logger.info("No staging Parquet found — falling back to raw JSON transform.")
         from tikitaka_dwh.transform.documents import build_documents
         from tikitaka_dwh.transform.sale_lines import build_sale_lines
