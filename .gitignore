@@ -1,0 +1,33 @@
+.venv/
+dist/
+build/
+*.egg-info/
+__pycache__/
+*.py[cod]
+*.pyo
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+*.duckdb
+*.duckdb.wal
+
+# App data paths
+%APPDATA%/TikiTakaPAYDWH/
+~/Library/Application Support/TikiTakaPAYDWH/
+~/.local/share/tikitaka-dwh/
+
+# Secrets — never commit
+.env
+*.enc
+*.pem
+*.key
+
+# Built installers — distribute via GitHub Releases, not tracked in git
+packaging/windows/*.exe
+packaging/linux/*.AppImage
+packaging/macos/*.dmg
+
+# IDE
+.vscode/
+.idea/
+*.swp

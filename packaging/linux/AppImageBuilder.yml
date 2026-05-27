@@ -1,0 +1,69 @@
+# appimage-builder recipe for Tiki-Taka PAY DWH
+#
+# Requirements:
+#   pip install appimage-builder          (https://appimage-builder.readthedocs.io)
+#   or: pipx install appimage-builder
+#
+# Build:
+#   1. uv run pyinstaller packaging/pyinstaller.spec   # produces dist/TikiTakaPAYDWH/
+#   2. cd packaging/linux
+#   3. appimage-builder --recipe AppImageBuilder.yml --skip-tests
+#
+# Output: TikiTakaPAYDWH-0.1.0-x86_64.AppImage  (in packaging/linux/)
+
+version: 1
+
+AppDir:
+  path: ../../dist/TikiTakaPAYDWH-AppDir
+
+  app_info:
+    id: lv.tikitaka.dwh
+    name: TikiTakaPAYDWH
+    icon: tikitakadwh
+    version: 0.1.0
+    exec: usr/bin/TikiTakaPAYDWH
+    exec_args: $@
+
+  apt:
+    arch: amd64
+    sources:
+      - sourceline: deb http://archive.ubuntu.com/ubuntu jammy main restricted universe multiverse
+        key_url: https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x3B4FE6ACC0B21F32
+
+    include:
+      # Minimal glibc / libstdc++ for Python
+      - libc6
+      - libstdc++6
+      - libgcc-s1
+      # OpenSSL (for httpx + keyring)
+      - libssl3
+      - libcrypto3-dev
+      # libsecret for keyring on GNOME/KDE
+      - libsecret-1-0
+      # X11 / desktop integration (browser opening)
+      - libxcb1
+      - xdg-utils
+
+  files:
+    # Copy the PyInstaller output into usr/bin inside the AppDir
+    include:
+      - '../../dist/TikiTakaPAYDWH/**'
+    exclude:
+      - '**/__pycache__/**'
+      - '**/*.pyc'
+
+  runtime:
+    env:
+      # Tell Streamlit where to find its static assets inside the AppImage
+      STREAMLIT_SERVER_HEADLESS: "true"
+      TIKITAKA_BUNDLED: "1"
+
+AppImage:
+  arch: x86_64
+  name: TikiTakaPAYDWH
+  version: 0.1.0
+  update-information: None
+
+  sign-key: None        # set to your GPG key fingerprint to sign the AppImage
+
+  file_name: TikiTakaPAYDWH-!arch-!version.AppImage

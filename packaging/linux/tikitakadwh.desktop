@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Tiki-Taka PAY DWH
+GenericName=POS Analytics
+Comment=Offline-first analytics dashboard for Tikitaka POS
+Exec=TikitakaDWH
+Icon=tikitakadwh
+Categories=Office;Finance;
+Keywords=POS;analytics;retail;sales;
+Terminal=false
+StartupNotify=true
