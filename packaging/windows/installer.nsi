@@ -10,9 +10,9 @@
 ; Output: packaging\windows\TikiTakaPAYDWH-Setup-x64.exe
 ;
 ; ── VERSION — update these three lines for every release ─────────────────────
-!define APP_VERSION     "0.1.0"
+!define APP_VERSION     "0.2.0"
 !define VER_MAJOR       "0"
-!define VER_MINOR       "1"
+!define VER_MINOR       "2"
 ; ─────────────────────────────────────────────────────────────────────────────
 
 !define APP_NAME        "Tiki-Taka PAY DWH"
@@ -27,7 +27,7 @@
 ; be touched by the installer or uninstaller — it holds the warehouse DB,
 ; all raw JSON files, and the user's credentials.
 ; Data dir (read-only reference for documentation):
-;   %LOCALAPPDATA%\TikiTakaPAYDWH\
+;   %LOCALAPPDATA%\TikiTakaPAYDWH  (no trailing backslash — avoids NSIS line-continuation)
 
 Name            "${APP_NAME} ${APP_VERSION}"
 OutFile         "TikiTakaPAYDWH-Setup-x64.exe"

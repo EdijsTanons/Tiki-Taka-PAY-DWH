@@ -1,50 +1,10 @@
-# Tiki-Taka PAY DWH
+# TikiTaka PAY DWH
 
-Offline-first analytics dashboard for Tikitaka POS clients.
-Pulls fiscal documents from the Tikitaka REST API, stores them locally as
-Parquet + DuckDB, and shows five dashboards through a packaged desktop app.
+**Version 0.2.0**
 
-All customer data stays on the user's laptop — no cloud, no telemetry.
+Offline-first analytics desktop application for Tikitaka POS clients. All data stays local — no cloud, no telemetry.
 
----
-
-## Quick start (development)
-
-```bash
-# 1. Install dependencies
-python -m uv sync --dev
-
-# 2. Run the UI (opens browser automatically)
-uv run python -m tikitaka_dwh
-
-# — or — run the sync CLI without UI
-uv run python scripts/dev_sync.py --mode backfill
-uv run python scripts/dev_sync.py --mode incremental
-```
-
-## Run tests
-
-```bash
-uv run pytest
-```
-
-## Build a distributable
-
-```bash
-# Current platform (Windows / macOS / Linux)
-uv run python scripts/build.py
-
-# Specific platform
-uv run python scripts/build.py --platform windows
-```
-
-See `packaging/macos/README.md` for macOS codesigning steps.
-
-## Reset local data (re-backfill)
-
-```bash
-uv run python scripts/reset_warehouse.py
-```
+**Stack:** Streamlit UI · DuckDB warehouse · PyInstaller Windows exe · NSIS installer · Python 3.11+ · `uv`
 
 ---
 
@@ -56,35 +16,76 @@ src/tikitaka_dwh/
 ├── config.py            # settings + app-data dir
 ├── auth.py              # OAuth2 token provider + keychain
 ├── api/                 # httpx client + pydantic schemas
-├── sync/                # backfill / incremental engine
+├── sync/                # backfill / incremental engine + watermark
 ├── transform/           # decode, documents, sale_lines, payments, dims
 ├── warehouse/           # DuckDB migrations + loader
-├── ui/                  # Streamlit app shell + 5 pages
+├── ui/                  # Streamlit app shell + 6 analytics pages + diagnostics
 └── observability/       # logging + Sentry
+
+scripts/
+├── build.py             # cross-platform PyInstaller + NSIS build
+├── build_from_raw.py    # load raw JSON lake → warehouse (large initial syncs)
+├── dev_sync.py          # headless sync CLI
+├── reset_warehouse.py   # wipe and restart
+└── create_icons.py      # generate icon assets
 ```
+
+---
 
 ## Data flow
 
 ```
-Tikitaka API
-    │  HTTPS (OAuth2 bearer)
-    ▼
-lake/raw/dt=YYYY-MM-DD/*.json     ← append-only, one file per page
+Tikitaka API  (OAuth2 HTTPS)
     │
+    ▼
+lake/raw/dt=YYYY-MM-DD/*.json        append-only, one file per API page
+    │                                 safe on disk even if sync is interrupted
     ▼  transform (pandas)
-lake/staging/documents/…/*.parquet
+lake/staging/documents|sale_lines|payments/*.parquet
     │
     ▼  DuckDB upsert
 warehouse.duckdb
-    ├── fct_documents
-    ├── fct_sale_lines
-    ├── fct_payments
-    ├── dim_*
-    └── agg_*              ← rebuilt after every sync
+    ├── fct_documents / fct_sale_lines / fct_payments
+    ├── dim_store / dim_pos / dim_operator / dim_product / dim_customer
+    ├── agg_daily_revenue / agg_product_daily / agg_hourly
+    └── _sync_state (watermark + backfill resume cursor)
     │
     ▼
-Streamlit dashboards
+Streamlit dashboards (6 pages)
 ```
+
+---
+
+## Sync modes
+
+- **Backfill** — downloads all documents from the beginning, checkpointing every 1 000 docs so it safely resumes after a sleep or crash
+- **Incremental** — fetches only documents newer than the last watermark ID
+
+---
+
+## Development
+
+```bash
+uv sync --dev
+uv run python -m tikitaka_dwh               # launch UI
+uv run python scripts/dev_sync.py --mode backfill
+uv run pytest
+```
+
+---
+
+## Build
+
+```bash
+# PyInstaller + NSIS in one step (Windows)
+uv run python scripts/build.py
+
+# or individually:
+uv run pyinstaller packaging/pyinstaller.spec --noconfirm
+makensis packaging\windows\installer.nsi
+```
+
+---
 
 ## Environment variables
 
@@ -94,5 +95,19 @@ Streamlit dashboards
 | `TIKITAKA_APP_DATA_DIR` | platform default | Override data folder |
 | `TIKITAKA_SENTRY_DSN` | *(unset)* | Enable crash reporting |
 | `TIKITAKA_LOG_LEVEL` | `INFO` | Log level |
-| `TIKITAKA_CRED_PASSPHRASE` | *(insecure default)* | Passphrase for credential file fallback |
-| `TIKITAKA_E2E=1` | *(unset)* | Enable live-API integration tests |
+
+---
+
+## Changelog
+
+### 0.2.0
+
+- **fix:** staging write failure now fails the sync instead of silently advancing the watermark (potential data-loss bug)
+- **feat:** resumable backfill — checkpoints every 1 000 docs; a sleep/crash loses at most that many docs of work
+- **feat:** `scripts/build_from_raw.py` — load whatever raw JSON is already on disk into the warehouse without re-downloading; `--audit-only` to count duplicates without writing
+- **feat:** Diagnostics page now shows raw-data stats (file count, unique IDs, duplicate count) and a "Rebuild from raw" button
+- **fix(installer):** NSIS installer now force-closes the running app before overwriting DLLs; adds `VersionMajor`/`VersionMinor` registry keys
+
+### 0.1.0
+
+- Initial release
