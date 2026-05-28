@@ -14,18 +14,19 @@ from tikitaka_dwh.ui.components import (
     excel_download_button,
     query,
 )
+from tikitaka_dwh.ui.i18n import t
 
 
 def render() -> None:
-    st.title("Z Reports — End of Day Summary")
+    st.title(t("zr_title"))
     filters = st.session_state.get("filters", {})
     if not filters:
-        st.warning("Apply filters in the sidebar.")
+        st.warning(t("apply_filters"))
         return
     try:
         _render_page(filters)
     except Exception as exc:
-        error_card("Z Reports page error", exc)
+        error_card(t("zr_page_error"), exc)
 
 
 def _render_page(filters: dict) -> None:
@@ -61,10 +62,9 @@ def _render_page(filters: dict) -> None:
     )
 
     if df.empty:
-        st.info("No Z reports found for the selected period.")
+        st.info(t("zr_no_data"))
         return
 
-    # Parse ceka_saturs XML for each row
     parsed = df["raw_xml"].apply(lambda x: extract_z_report_data(x or ""))
     df["z_total"]           = parsed.apply(lambda p: p["total"])
     df["cancelled_count"]   = parsed.apply(lambda p: p["cancelled_count"])
@@ -90,10 +90,10 @@ def _render_page(filters: dict) -> None:
     cancelled_ttl = int(df["cancelled_count"].fillna(0).astype(int).sum())
 
     c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Z Reports",          len(df))
-    c2.metric("Total Sales",        f"€{total_revenue:,.2f}")
-    c3.metric("Avg Daily Revenue",  f"€{avg_daily:,.2f}")
-    c4.metric("Voided Transactions", cancelled_ttl)
+    c1.metric(t("zr_kpi_count"),       len(df))
+    c2.metric(t("zr_kpi_total_sales"), f"€{total_revenue:,.2f}")
+    c3.metric(t("zr_kpi_avg_daily"),   f"€{avg_daily:,.2f}")
+    c4.metric(t("zr_kpi_voided"),      cancelled_ttl)
 
     st.divider()
 
@@ -109,42 +109,25 @@ def _render_page(filters: dict) -> None:
         alt.Chart(daily)
         .mark_bar(color="#4C8BF5")
         .encode(
-            x=alt.X("doc_date:O", title="Date", axis=alt.Axis(labelAngle=-45)),
-            y=alt.Y("gross:Q", title="Sales (€)"),
+            x=alt.X("doc_date:O", title=t("zr_chart_date_axis"), axis=alt.Axis(labelAngle=-45)),
+            y=alt.Y("gross:Q", title=t("zr_chart_sales_axis")),
             tooltip=[
-                alt.Tooltip("doc_date:O", title="Date"),
-                alt.Tooltip("gross:Q",    title="Sales (€)", format=",.2f"),
+                alt.Tooltip("doc_date:O", title=t("zr_chart_date_axis")),
+                alt.Tooltip("gross:Q",    title=t("zr_chart_sales_axis"), format=",.2f"),
             ],
         )
         .properties(height=240)
     )
-    st.subheader("Daily revenue from Z reports")
+    st.subheader(t("zr_daily_chart"))
     st.altair_chart(chart, use_container_width=True)
 
     st.divider()
 
     # ── Z Report register table ────────────────────────────────────────────────
-    st.subheader("Z Report register")
+    st.subheader(t("zr_register"))
 
-    with st.expander("About the Match column"):
-        st.markdown(
-            """
-**Match** compares two numbers for each Z report:
-
-- **Calculated (€)** — sum of all sale transactions for that day + store + POS from the database
-- **Z-stated (€)** — the "KOPĀ" (total) value parsed directly from the Z report receipt
-
-| Symbol | Meaning |
-|--------|---------|
-| ✓ | Z-stated total matches calculated sales within €0.01 |
-| ✗ | They differ |
-| ? | Z report XML could not be parsed |
-
-**Note:** when a POS has several Z reports on the same day (intermediate reports), \
-the Calculated column shows the *full day's* sales — so all but the last Z report of the day \
-will show ✗. That is expected. Only the final Z report of the day should show ✓.
-            """
-        )
+    with st.expander(t("zr_match_expander")):
+        st.markdown(t("zr_match_info"))
 
     display = df[[
         "doc_date", "store_number", "pos_id", "z_num",
@@ -155,13 +138,15 @@ will show ✗. That is expected. Only the final Z report of the day should show 
         "refund_count", "cash_in", "cash_out",
     ]].copy()
     display.columns = [
-        "Date", "Store", "POS", "Z#",
-        "Operator ID", "Operator",
-        "Txns", "Calculated (€)", "Z-stated (€)",
-        "Match",
-        "Voided #", "Voided (€)",
-        "Refunds #", "Cash in (€)", "Cash out (€)",
+        t("zr_col_date"), t("zr_col_store"), t("zr_col_pos"), t("zr_col_znum"),
+        t("zr_col_op_id"), t("zr_col_operator"),
+        t("zr_col_txns"), t("zr_col_calculated"), t("zr_col_z_stated"),
+        t("zr_col_match"),
+        t("zr_col_voided_n"), t("zr_col_voided_eur"),
+        t("zr_col_refunds_n"), t("zr_col_cash_in"), t("zr_col_cash_out"),
     ]
+
+    match_col = t("zr_col_match")
 
     def _style_match(val: str) -> str:
         if val == "✗":
@@ -171,16 +156,16 @@ will show ✗. That is expected. Only the final Z report of the day should show 
         return ""
 
     st.dataframe(
-        display.style.map(_style_match, subset=["Match"]),
+        display.style.map(_style_match, subset=[match_col]),
         use_container_width=True,
         hide_index=True,
     )
 
     col1, col2 = st.columns(2)
     with col1:
-        csv_download_button(display, "z_reports.csv", "Export CSV")
+        csv_download_button(display, "z_reports.csv")
     with col2:
-        excel_download_button(display, "z_reports.xlsx", "Export Excel")
+        excel_download_button(display, "z_reports.xlsx")
 
     st.divider()
 
@@ -189,20 +174,25 @@ will show ✗. That is expected. Only the final Z report of the day should show 
     for _, row in df.iterrows():
         for vr in row["vat_rows"]:
             vat_rows.append({
-                "Code":        vr["code"],
-                "Rate %":      vr["rate"],
-                "Taxable (€)": vr["taxable"],
-                "VAT (€)":     vr["vat"],
+                t("zr_vat_col_code"):    vr["code"],
+                t("zr_vat_col_rate"):    vr["rate"],
+                t("zr_vat_col_taxable"): vr["taxable"],
+                t("zr_vat_col_vat"):     vr["vat"],
             })
 
     if vat_rows:
+        code_col    = t("zr_vat_col_code")
+        rate_col    = t("zr_vat_col_rate")
+        taxable_col = t("zr_vat_col_taxable")
+        vat_col_lbl = t("zr_vat_col_vat")
+
         vat_df = pd.DataFrame(vat_rows)
         vat_summary = (
-            vat_df.groupby(["Code", "Rate %"], as_index=False)
-            .agg({"Taxable (€)": "sum", "VAT (€)": "sum"})
-            .sort_values("Code")
+            vat_df.groupby([code_col, rate_col], as_index=False)
+            .agg({taxable_col: "sum", vat_col_lbl: "sum"})
+            .sort_values(code_col)
         )
-        st.subheader("VAT breakdown (period total from Z reports)")
+        st.subheader(t("zr_vat_section"))
         st.dataframe(vat_summary, use_container_width=True, hide_index=True)
         st.divider()
 
@@ -229,8 +219,11 @@ will show ✗. That is expected. Only the final Z report of the day should show 
     )
 
     if not gaps_df.empty:
-        st.subheader(f"Days with sales but no Z report — {len(gaps_df)} found")
-        gaps_df.columns = ["Date", "Store", "POS", "Txns", "Sales (€)"]
+        st.subheader(t("zr_gaps_heading", n=len(gaps_df)))
+        gaps_df.columns = [
+            t("zr_gaps_col_date"), t("zr_gaps_col_store"), t("zr_gaps_col_pos"),
+            t("zr_gaps_col_txns"), t("zr_gaps_col_sales"),
+        ]
         st.dataframe(gaps_df, use_container_width=True, hide_index=True)
     else:
-        st.success("All sales days have a corresponding Z report.")
+        st.success(t("zr_all_ok"))

@@ -5,10 +5,11 @@ from __future__ import annotations
 import streamlit as st
 
 from tikitaka_dwh.ui.components import run_async
+from tikitaka_dwh.ui.i18n import t
 
 
 def render_onboarding() -> None:
-    st.title("Welcome to Tiki-Taka PAY DWH")
+    st.title(t("onb_title"))
     step = st.session_state.get("onboarding_step", 1)
 
     if step == 1:
@@ -20,72 +21,57 @@ def render_onboarding() -> None:
 
 
 def _step_welcome() -> None:
-    st.markdown(
-        """
-        ### Step 1 of 3 — Welcome
-
-        This app downloads your Tikitaka point-of-sale data and stores it
-        **locally on your computer**. No data is sent to any cloud service.
-
-        You will need:
-        - Your **username** (email) and **password** for the Tikitaka management portal.
-        - A working internet connection for the initial sync.
-
-        After the first sync, the app works fully offline.
-        """
-    )
-    if st.button("Get started →", type="primary"):
+    st.markdown(t("onb_step1_heading"))
+    st.markdown(t("onb_step1_body"))
+    if st.button(t("onb_get_started"), type="primary"):
         st.session_state["onboarding_step"] = 2
         st.rerun()
 
 
 def _step_credentials() -> None:
-    st.markdown("### Step 2 of 3 — Login credentials")
-    st.info("Use the same username and password you log in to manage.tikitaka.lv with.")
+    st.markdown(t("onb_step2_heading"))
+    st.info(t("onb_step2_info"))
 
-    username = st.text_input("Username (email)", key="onb_username")
-    password = st.text_input("Password", type="password", key="onb_password")
+    username = st.text_input(t("onb_username"), key="onb_username")
+    password = st.text_input(t("onb_password"), type="password", key="onb_password")
 
     col_test, col_next = st.columns([2, 1])
 
     with col_test:
-        if st.button("Test connection", disabled=not (username and password)):
-            with st.spinner("Connecting …"):
+        if st.button(t("onb_test_connection"), disabled=not (username and password)):
+            with st.spinner(t("onb_connecting")):
                 ok, msg = _test_connection(username, password)
             if ok:
-                st.success(f"Connection successful! {msg}")
+                st.success(t("onb_conn_ok", msg=msg))
                 st.session_state["onb_tested"] = True
             else:
-                st.error(f"Connection failed: {msg}")
+                st.error(t("onb_conn_fail", msg=msg))
                 st.session_state["onb_tested"] = False
 
     with col_next:
         tested = st.session_state.get("onb_tested", False)
-        if st.button("Save & continue →", type="primary", disabled=not tested):
+        if st.button(t("onb_save_continue"), type="primary", disabled=not tested):
             from tikitaka_dwh.auth import save_credentials
 
             save_credentials(username, password)
             st.session_state["onboarding_step"] = 3
             st.rerun()
 
-    if st.button("← Back"):
+    if st.button(t("onb_back")):
         st.session_state["onboarding_step"] = 1
         st.rerun()
 
 
 def _step_backfill() -> None:
-    st.markdown("### Step 3 of 3 — Initial data sync")
-    st.info(
-        "The first sync downloads all your historical data. "
-        "This may take a few minutes depending on your data volume."
-    )
+    st.markdown(t("onb_step3_heading"))
+    st.info(t("onb_step3_info"))
 
-    if st.button("Start sync", type="primary", key="onb_start_sync"):
+    if st.button(t("onb_start_sync"), type="primary", key="onb_start_sync"):
         _run_backfill()
         return
 
     if st.session_state.get("onb_sync_done"):
-        st.success("Sync complete! Redirecting to dashboards …")
+        st.success(t("onb_sync_complete"))
         st.session_state.pop("onboarding_step", None)
         st.session_state.pop("onb_sync_done", None)
         st.session_state.pop("onb_tested", None)
@@ -136,7 +122,7 @@ def _run_backfill() -> None:
 
     creds = load_credentials()
     if not creds:
-        st.error("Credentials not found — please go back to step 2.")
+        st.error(t("onb_no_creds"))
         return
 
     username, password = creds
@@ -144,7 +130,7 @@ def _run_backfill() -> None:
     ensure_app_dirs()
     staging_dir = settings.app_data_dir / "lake" / "staging"
 
-    bar = st.progress(0, text="Starting sync …")
+    bar = st.progress(0, text=t("onb_sync_starting"))
 
     async def _do() -> int:
         async with httpx.AsyncClient() as http:
@@ -166,7 +152,7 @@ def _run_backfill() -> None:
 
             def progress(done: int, total: int | None) -> None:
                 frac = (done / total) if total else 0.0
-                bar.progress(min(frac, 0.99), text=f"Downloaded {done} documents …")
+                bar.progress(min(frac, 0.99), text=t("onb_sync_progress", n=done))
 
             return await engine.run_backfill(progress=progress)
 
@@ -176,9 +162,9 @@ def _run_backfill() -> None:
             settings.app_data_dir / "warehouse.duckdb",
             staging_dir,
         )
-        bar.progress(1.0, text=f"Done — {count} documents synced.")
+        bar.progress(1.0, text=t("onb_sync_done_bar", n=count))
         st.session_state["onb_sync_done"] = True
         st.rerun()
     except Exception as exc:
         bar.empty()
-        st.error(f"Sync failed: {exc}")
+        st.error(t("onb_sync_failed", exc=exc))

@@ -28,10 +28,13 @@ def main() -> None:
     from tikitaka_dwh.config import ensure_app_dirs
     from tikitaka_dwh.observability.logging import configure_logging
     from tikitaka_dwh.observability.sentry import init_sentry
+    from tikitaka_dwh.ui.i18n import render_language_selector, t
 
     ensure_app_dirs()
     configure_logging()
     init_sentry()
+
+    render_language_selector()
 
     if not _has_credentials():
         from tikitaka_dwh.ui.onboarding import render_onboarding
@@ -45,7 +48,7 @@ def main() -> None:
         render_sync_button,
     )
 
-    st.sidebar.title("Tiki-Taka PAY DWH")
+    st.sidebar.title(t("sidebar_title"))
     render_sync_status()
     render_sync_button()
     st.sidebar.divider()
@@ -53,14 +56,14 @@ def main() -> None:
     st.session_state["filters"] = filters
 
     pages = {
-        "Revenue": "01_revenue",
-        "Products": "02_products",
-        "Stores & POS": "03_stores_pos",
-        "Heatmap": "04_heatmap",
-        "VAT": "05_vat",
-        "Z Reports": "06_z_reports",
-        "Settings": "settings",
-        "Diagnostics": "diagnostics",
+        t("nav_revenue"):    "01_revenue",
+        t("nav_products"):   "02_products",
+        t("nav_stores_pos"): "03_stores_pos",
+        t("nav_heatmap"):    "04_heatmap",
+        t("nav_vat"):        "05_vat",
+        t("nav_z_reports"):  "06_z_reports",
+        t("nav_settings"):   "settings",
+        t("nav_diagnostics"):"diagnostics",
     }
 
     st.sidebar.divider()
@@ -68,7 +71,7 @@ def main() -> None:
     st.session_state["current_page"] = page
 
     if not _warehouse_has_data():
-        st.info("No data yet. Click **Sync now** in the sidebar to load your first batch.")
+        st.info(t("no_data_hint"))
         return
 
     _load_page(pages[page])

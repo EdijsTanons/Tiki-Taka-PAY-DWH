@@ -7,9 +7,11 @@ from pathlib import Path
 
 import streamlit as st
 
+from tikitaka_dwh.ui.i18n import t
+
 
 def render() -> None:
-    st.title("Settings")
+    st.title(t("settings_title"))
     try:
         _section_credentials()
         st.divider()
@@ -19,35 +21,35 @@ def render() -> None:
     except Exception as exc:
         from tikitaka_dwh.ui.components import error_card
 
-        error_card("Settings page error", exc)
+        error_card(t("settings_page_error"), exc)
 
 
 def _section_credentials() -> None:
     from tikitaka_dwh.auth import load_credentials, save_credentials, clear_credentials
 
-    st.subheader("API credentials")
+    st.subheader(t("settings_api_creds"))
     creds = load_credentials()
 
     if creds:
         username, _ = creds
-        st.success(f"Credentials stored (username: `{username}`).")
-        if st.button("Change credentials"):
+        st.success(t("settings_creds_stored", u=username))
+        if st.button(t("settings_change_creds")):
             st.session_state["settings_change_creds"] = True
 
     if not creds or st.session_state.get("settings_change_creds"):
-        new_username = st.text_input("Username (email)", key="settings_new_id")
-        new_password = st.text_input("Password", type="password", key="settings_new_secret")
+        new_username = st.text_input(t("settings_username"), key="settings_new_id")
+        new_password = st.text_input(t("settings_password"), type="password", key="settings_new_secret")
         c1, c2 = st.columns(2)
         with c1:
-            if st.button("Save credentials", type="primary", disabled=not (new_username and new_password)):
+            if st.button(t("settings_save_creds"), type="primary", disabled=not (new_username and new_password)):
                 save_credentials(new_username, new_password)
                 st.session_state.pop("settings_change_creds", None)
-                st.success("Credentials updated.")
+                st.success(t("settings_creds_updated"))
                 st.rerun()
         with c2:
-            if st.button("Clear credentials", type="secondary"):
+            if st.button(t("settings_clear_creds"), type="secondary"):
                 clear_credentials()
-                st.warning("Credentials cleared. You will be redirected to onboarding.")
+                st.warning(t("settings_creds_cleared"))
                 st.rerun()
 
 
@@ -55,44 +57,32 @@ def _section_data_folder() -> None:
     from tikitaka_dwh.config import get_settings
 
     settings = get_settings()
-    st.subheader("Data folder")
+    st.subheader(t("settings_data_folder"))
     st.code(str(settings.app_data_dir))
-
-    st.info(
-        "To move your data folder, set the `TIKITAKA_APP_DATA_DIR` environment variable "
-        "to the new path and restart the app. The existing warehouse will need to be "
-        "manually copied to the new location."
-    )
+    st.info(t("settings_data_folder_info"))
 
     db_path = settings.app_data_dir / "warehouse.duckdb"
     if db_path.exists():
         size_mb = db_path.stat().st_size / (1024 * 1024)
-        st.caption(f"Warehouse size: {size_mb:.1f} MB")
+        st.caption(t("settings_warehouse_size", n=f"{size_mb:.1f}"))
 
 
 def _section_sentry() -> None:
     import os
 
-    st.subheader("Crash reporting (Sentry)")
+    st.subheader(t("settings_sentry"))
 
     current_dsn = os.environ.get("TIKITAKA_SENTRY_DSN", "")
     enabled = bool(current_dsn)
 
-    st.markdown(
-        "Crash reports are **opt-in only**. When enabled, anonymised error traces are sent "
-        "to Sentry. No customer data, credentials, or sales figures are included."
-    )
+    st.markdown(t("settings_sentry_info"))
 
     if enabled:
-        st.success("Crash reporting is enabled.")
-        if st.button("Disable crash reporting"):
-            st.info(
-                "To disable, unset the `TIKITAKA_SENTRY_DSN` environment variable and restart the app."
-            )
+        st.success(t("settings_sentry_enabled"))
+        if st.button(t("settings_sentry_disable")):
+            st.info(t("settings_sentry_disable_info"))
     else:
-        st.warning("Crash reporting is disabled.")
-        dsn_input = st.text_input("Enter Sentry DSN to enable (optional)", key="settings_dsn")
-        if st.button("Enable crash reporting", disabled=not dsn_input):
-            st.info(
-                f"Set `TIKITAKA_SENTRY_DSN={dsn_input}` as an environment variable and restart the app."
-            )
+        st.warning(t("settings_sentry_disabled"))
+        dsn_input = st.text_input(t("settings_sentry_dsn_input"), key="settings_dsn")
+        if st.button(t("settings_sentry_enable"), disabled=not dsn_input):
+            st.info(t("settings_sentry_enable_info", dsn=dsn_input))

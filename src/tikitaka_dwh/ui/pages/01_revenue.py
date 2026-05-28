@@ -10,13 +10,14 @@ from tikitaka_dwh.ui.components import (
     error_card,
     query,
 )
+from tikitaka_dwh.ui.i18n import t
 
 
 def render() -> None:
-    st.title("Revenue")
+    st.title(t("rev_title"))
     filters = st.session_state.get("filters", {})
     if not filters:
-        st.warning("Apply filters in the sidebar.")
+        st.warning(t("apply_filters"))
         return
 
     try:
@@ -28,7 +29,7 @@ def render() -> None:
         st.divider()
         _render_table(filters)
     except Exception as exc:
-        error_card("Revenue page error", exc)
+        error_card(t("rev_page_error"), exc)
 
 
 def _render_metrics(filters: dict) -> None:
@@ -54,15 +55,15 @@ def _render_metrics(filters: dict) -> None:
     )
 
     if df.empty or df["gross"].isna().all():
-        st.info("No revenue data for the selected period.")
+        st.info(t("rev_no_data"))
         return
 
     row = df.iloc[0]
     c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Gross revenue", f"€ {row['gross']:,.2f}")
-    c2.metric("Net revenue", f"€ {row['net']:,.2f}" if row["net"] else "—")
-    c3.metric("Transactions", f"{int(row['txn_count']):,}")
-    c4.metric("Avg basket", f"€ {row['avg_basket']:,.2f}" if row["avg_basket"] else "—")
+    c1.metric(t("rev_gross"), f"€ {row['gross']:,.2f}")
+    c2.metric(t("rev_net"), f"€ {row['net']:,.2f}" if row["net"] else "—")
+    c3.metric(t("rev_transactions"), f"{int(row['txn_count']):,}")
+    c4.metric(t("rev_avg_basket"), f"€ {row['avg_basket']:,.2f}" if row["avg_basket"] else "—")
 
 
 def _render_daily_chart(filters: dict) -> None:
@@ -79,7 +80,7 @@ def _render_daily_chart(filters: dict) -> None:
     )
     if df.empty:
         return
-    st.subheader("Daily revenue")
+    st.subheader(t("rev_daily_chart"))
     st.line_chart(df.set_index("doc_date")["gross"])
 
 
@@ -99,19 +100,23 @@ def _render_weekly_bar(filters: dict) -> None:
     )
     if df.empty:
         return
-    st.subheader("Weekly revenue")
+    st.subheader(t("rev_weekly_chart"))
     st.bar_chart(df.set_index("week_start")["gross"])
 
 
 def _render_table(filters: dict) -> None:
     where, params = date_store_pos_where(filters)
+    date_col = t("rev_col_date")
+    store_col = t("rev_col_store")
+    gross_col = t("rev_col_gross")
+    txns_col = t("rev_col_txns")
     df = query(
         f"""
         SELECT
-            doc_date        AS "Date",
-            store_number    AS "Store",
-            SUM(doc_sum)    AS "Gross (€)",
-            COUNT(*)        AS "Transactions"
+            doc_date        AS "{date_col}",
+            store_number    AS "{store_col}",
+            SUM(doc_sum)    AS "{gross_col}",
+            COUNT(*)        AS "{txns_col}"
         FROM fct_documents
         WHERE doc_type = 'sale' AND {where}
         GROUP BY doc_date, store_number
@@ -121,6 +126,6 @@ def _render_table(filters: dict) -> None:
     )
     if df.empty:
         return
-    st.subheader("Daily breakdown")
+    st.subheader(t("rev_daily_table"))
     st.dataframe(df, use_container_width=True, hide_index=True)
     csv_download_button(df, "revenue.csv")

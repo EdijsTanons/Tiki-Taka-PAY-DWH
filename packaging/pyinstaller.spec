@@ -72,6 +72,7 @@ hidden = [
     "tikitaka_dwh.warehouse.db",
     "tikitaka_dwh.warehouse.migrations.runner",
     "tikitaka_dwh.ui.app",
+    "tikitaka_dwh.ui.i18n",
     "tikitaka_dwh.ui.onboarding",
     "tikitaka_dwh.ui.settings",
     "tikitaka_dwh.ui.diagnostics",

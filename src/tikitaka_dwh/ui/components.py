@@ -100,21 +100,23 @@ def warehouse_exists() -> bool:
 
 def render_sidebar_filters() -> dict:
     """Render date-range + store + POS filters. Returns dict of active values."""
-    st.sidebar.header("Filters")
+    from tikitaka_dwh.ui.i18n import t
+
+    st.sidebar.header(t("sidebar_filters"))
 
     default_end = date.today()
     default_start = default_end - timedelta(days=29)
 
-    start = st.sidebar.date_input("From", value=default_start, key="filter_start")
-    end = st.sidebar.date_input("To", value=default_end, key="filter_end")
+    start = st.sidebar.date_input(t("sidebar_date_from"), value=default_start, key="filter_start")
+    end = st.sidebar.date_input(t("sidebar_date_to"), value=default_end, key="filter_end")
 
     stores_df = query("SELECT DISTINCT store_number FROM fct_documents WHERE store_number IS NOT NULL ORDER BY 1")
     store_options = stores_df["store_number"].tolist() if not stores_df.empty else []
-    selected_stores = st.sidebar.multiselect("Stores", store_options, default=store_options, key="filter_stores")
+    selected_stores = st.sidebar.multiselect(t("sidebar_stores"), store_options, default=store_options, key="filter_stores")
 
     pos_df = query("SELECT DISTINCT pos_id FROM fct_documents WHERE pos_id IS NOT NULL ORDER BY 1")
     pos_options = [str(p) for p in pos_df["pos_id"].tolist()] if not pos_df.empty else []
-    selected_pos = st.sidebar.multiselect("POS terminals", pos_options, default=pos_options, key="filter_pos")
+    selected_pos = st.sidebar.multiselect(t("sidebar_pos_terminals"), pos_options, default=pos_options, key="filter_pos")
 
     return {
         "start": start,
@@ -153,25 +155,28 @@ def date_store_pos_where(filters: dict, alias: str = "") -> tuple[str, list]:
 def render_sync_status() -> None:
     from tikitaka_dwh.config import get_settings
     from tikitaka_dwh.sync.watermark import WatermarkStore
+    from tikitaka_dwh.ui.i18n import t
 
     db_path = get_settings().app_data_dir / "warehouse.duckdb"
     if not db_path.exists():
-        st.sidebar.caption("No data synced yet.")
+        st.sidebar.caption(t("sidebar_no_data_synced"))
         return
 
     try:
         wm = WatermarkStore(db_path)
         last = wm.get_last_sync_completed()
         if last:
-            st.sidebar.caption(f"Last synced: {last.strftime('%Y-%m-%d %H:%M')} UTC")
+            st.sidebar.caption(t("sidebar_last_synced", ts=last.strftime("%Y-%m-%d %H:%M")))
         else:
-            st.sidebar.caption("Never synced.")
+            st.sidebar.caption(t("sidebar_never_synced"))
     except Exception:
         pass
 
 
 def render_sync_button() -> None:
-    if st.sidebar.button("Sync now", use_container_width=True):
+    from tikitaka_dwh.ui.i18n import t
+
+    if st.sidebar.button(t("sidebar_sync_now"), use_container_width=True):
         _run_sync()
 
 
@@ -184,16 +189,17 @@ def _run_sync() -> None:
     from tikitaka_dwh.sync.engine import SyncEngine
     from tikitaka_dwh.sync.watermark import WatermarkStore
     from tikitaka_dwh.warehouse.db import initialize_warehouse, load_staging_to_warehouse
+    from tikitaka_dwh.ui.i18n import t
 
     settings = get_settings()
     creds = load_credentials()
     if not creds:
-        st.sidebar.error("No credentials stored. Please complete onboarding.")
+        st.sidebar.error(t("sidebar_no_credentials"))
         return
 
     username, password = creds
     staging_dir = settings.app_data_dir / "lake" / "staging"
-    progress_bar = st.sidebar.progress(0, text="Connecting …")
+    progress_bar = st.sidebar.progress(0, text=t("sync_connecting"))
 
     async def _do_sync() -> int:
         async with httpx.AsyncClient() as http:
@@ -215,7 +221,7 @@ def _run_sync() -> None:
 
             def progress(done: int, total: int | None) -> None:
                 frac = (done / total) if total else 0.0
-                progress_bar.progress(min(frac, 0.99), text=f"Syncing … {done} docs")
+                progress_bar.progress(min(frac, 0.99), text=t("sync_progress", n=done))
 
             return await engine.run_incremental(progress=progress)
 
@@ -225,13 +231,13 @@ def _run_sync() -> None:
             settings.app_data_dir / "warehouse.duckdb",
             settings.app_data_dir / "lake" / "staging",
         )
-        progress_bar.progress(1.0, text=f"Done — {count} new documents.")
+        progress_bar.progress(1.0, text=t("sync_done", n=count))
         st.cache_data.clear()
         st.rerun()
     except Exception as exc:
         progress_bar.empty()
         msg = str(exc) or type(exc).__name__
-        st.sidebar.error(f"Sync failed: {msg}")
+        st.sidebar.error(t("sync_failed", msg=msg))
 
 
 # ---------------------------------------------------------------------------
@@ -239,17 +245,21 @@ def _run_sync() -> None:
 # ---------------------------------------------------------------------------
 
 
-def csv_download_button(df: pd.DataFrame, filename: str, label: str = "Export CSV") -> None:
+def csv_download_button(df: pd.DataFrame, filename: str, label: str | None = None) -> None:
+    from tikitaka_dwh.ui.i18n import t
+
     csv = df.to_csv(index=False).encode("utf-8-sig")
-    st.download_button(label=label, data=csv, file_name=filename, mime="text/csv")
+    st.download_button(label=label or t("export_csv"), data=csv, file_name=filename, mime="text/csv")
 
 
-def excel_download_button(df: pd.DataFrame, filename: str, label: str = "Export Excel") -> None:
+def excel_download_button(df: pd.DataFrame, filename: str, label: str | None = None) -> None:
+    from tikitaka_dwh.ui.i18n import t
+
     buf = io.BytesIO()
     with pd.ExcelWriter(buf, engine="openpyxl") as writer:
         df.to_excel(writer, index=False, sheet_name="Data")
     st.download_button(
-        label=label,
+        label=label or t("export_excel"),
         data=buf.getvalue(),
         file_name=filename,
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -263,8 +273,9 @@ def excel_download_button(df: pd.DataFrame, filename: str, label: str = "Export 
 
 def error_card(title: str, exc: Exception) -> None:
     import traceback
+    from tikitaka_dwh.ui.i18n import t
 
     diag = traceback.format_exc()
     st.error(f"**{title}**\n\n{exc}")
-    with st.expander("Copy diagnostics"):
+    with st.expander(t("copy_diag_expander")):
         st.code(diag)

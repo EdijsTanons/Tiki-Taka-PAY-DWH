@@ -8,16 +8,17 @@ from pathlib import Path
 import streamlit as st
 
 from tikitaka_dwh.ui.components import run_async
+from tikitaka_dwh.ui.i18n import t
 
 
 def render() -> None:
-    st.title("Diagnostics")
+    st.title(t("diag_title"))
     try:
         _render_diagnostics()
     except Exception as exc:
         from tikitaka_dwh.ui.components import error_card
 
-        error_card("Diagnostics error", exc)
+        error_card(t("diag_error"), exc)
 
     st.divider()
     try:
@@ -25,7 +26,7 @@ def render() -> None:
     except Exception as exc:
         from tikitaka_dwh.ui.components import error_card
 
-        error_card("Raw data section error", exc)
+        error_card(t("diag_raw_error"), exc)
 
 
 def _render_diagnostics() -> None:
@@ -72,11 +73,11 @@ def _render_diagnostics() -> None:
 
     diag_text = "\n".join(lines)
 
-    st.subheader("System information")
+    st.subheader(t("diag_system_info"))
     st.code(diag_text, language="text")
 
     st.download_button(
-        "Copy / download diagnostics",
+        t("diag_copy_download"),
         data=diag_text,
         file_name="tikitaka_diag.txt",
         mime="text/plain",
@@ -113,37 +114,35 @@ def _render_raw_section() -> None:
     raw_dir = settings.app_data_dir / "lake" / "raw"
     db_path = settings.app_data_dir / "warehouse.duckdb"
 
-    st.subheader("Raw data on disk")
+    st.subheader(t("diag_raw_title"))
 
     if not raw_dir.exists() or not any(raw_dir.rglob("*.json")):
-        st.info("No raw JSON files found yet.  Run a sync first.")
+        st.info(t("diag_no_raw"))
         return
 
-    with st.spinner("Scanning raw files …"):
+    with st.spinner(t("diag_scanning")):
         stats = audit_raw(raw_dir)
 
     col1, col2, col3, col4 = st.columns(4)
-    col1.metric("JSON files", f"{stats['files']:,}")
-    col2.metric("Total records", f"{stats['total_docs']:,}")
-    col3.metric("Unique doc IDs", f"{stats['unique_ids']:,}")
+    col1.metric(t("diag_json_files"), f"{stats['files']:,}")
+    col2.metric(t("diag_total_records"), f"{stats['total_docs']:,}")
+    col3.metric(t("diag_unique_ids"), f"{stats['unique_ids']:,}")
     dup_label = f"{stats['duplicate_docs']:,}"
-    col4.metric("Duplicates", dup_label, delta=None if stats["duplicate_docs"] == 0 else f"−{dup_label}", delta_color="inverse")
-
-    if stats["min_id"] is not None:
-        st.caption(f"Doc ID range: {stats['min_id']:,} – {stats['max_id']:,}")
-
-    st.markdown(
-        "**Rebuild from raw** re-reads every JSON file, deduplicates by doc ID "
-        "and loads the result into the warehouse.  Useful when a backfill was "
-        "interrupted — you get partial data immediately while the rest finishes downloading.\n\n"
-        "⚠️ *Leave 'Update watermark' unchecked unless you're sure all documents are already "
-        "on disk.  Ticking it tells the app the download is complete, so it will never go "
-        "back to fetch older documents.*"
+    col4.metric(
+        t("diag_duplicates"),
+        dup_label,
+        delta=None if stats["duplicate_docs"] == 0 else f"−{dup_label}",
+        delta_color="inverse",
     )
 
-    set_wm = st.checkbox("Update watermark after rebuild (only tick when download is 100% complete)", value=False)
+    if stats["min_id"] is not None:
+        st.caption(t("diag_doc_id_range", min=f"{stats['min_id']:,}", max=f"{stats['max_id']:,}"))
 
-    if st.button("🔄 Rebuild warehouse from raw JSON", type="primary"):
+    st.markdown(t("diag_rebuild_info"))
+
+    set_wm = st.checkbox(t("diag_update_watermark"), value=False)
+
+    if st.button(t("diag_rebuild_btn"), type="primary"):
         watermark = None
         if set_wm:
             from tikitaka_dwh.sync.watermark import WatermarkStore
@@ -152,7 +151,7 @@ def _render_raw_section() -> None:
         if not db_path.exists():
             initialize_warehouse(db_path)
 
-        with st.spinner(f"Loading {stats['unique_ids']:,} documents …"):
+        with st.spinner(t("diag_loading_docs", n=stats["unique_ids"])):
             result = rebuild_from_raw(
                 db_path=db_path,
                 raw_dir=raw_dir,
@@ -160,10 +159,10 @@ def _render_raw_section() -> None:
                 set_watermark=set_wm,
             )
 
-        st.success(
-            f"Done — {result['warehouse_rows']:,} documents loaded into warehouse."
-            + (f"  Watermark set to max_id={result['max_id']}." if set_wm else "")
-        )
+        done_msg = t("diag_rebuild_done", rows=result["warehouse_rows"])
+        if set_wm:
+            done_msg += t("diag_watermark_set", mid=result["max_id"])
+        st.success(done_msg)
         st.cache_data.clear()
         st.rerun()
 

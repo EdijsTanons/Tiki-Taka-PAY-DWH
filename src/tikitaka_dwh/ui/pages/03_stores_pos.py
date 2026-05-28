@@ -11,13 +11,14 @@ from tikitaka_dwh.ui.components import (
     error_card,
     query,
 )
+from tikitaka_dwh.ui.i18n import t
 
 
 def render() -> None:
-    st.title("Stores & POS")
+    st.title(t("stores_title"))
     filters = st.session_state.get("filters", {})
     if not filters:
-        st.warning("Apply filters in the sidebar.")
+        st.warning(t("apply_filters"))
         return
 
     try:
@@ -29,30 +30,34 @@ def render() -> None:
         st.divider()
         _render_comparison(filters)
     except Exception as exc:
-        error_card("Stores & POS page error", exc)
+        error_card(t("stores_page_error"), exc)
 
 
 def _render_store_revenue(filters: dict) -> None:
     where, params = date_store_pos_where(filters)
+    store_col = t("stores_col_store")
+    gross_col = t("stores_col_gross")
+    txns_col = t("stores_col_txns")
+    avg_col = t("stores_col_avg_basket")
     df = query(
         f"""
         SELECT
-            store_number                AS "Store",
-            SUM(doc_sum)                AS "Gross (€)",
-            COUNT(*)                    AS "Transactions",
-            AVG(doc_sum)                AS "Avg basket (€)"
+            store_number                AS "{store_col}",
+            SUM(doc_sum)                AS "{gross_col}",
+            COUNT(*)                    AS "{txns_col}",
+            AVG(doc_sum)                AS "{avg_col}"
         FROM fct_documents
         WHERE doc_type = 'sale' AND {where}
         GROUP BY store_number
-        ORDER BY "Gross (€)" DESC
+        ORDER BY "{gross_col}" DESC
         """,
         params,
     )
     if df.empty:
-        st.info("No data.")
+        st.info(t("stores_no_data"))
         return
-    st.subheader("Revenue by store")
-    st.bar_chart(df.set_index("Store")["Gross (€)"])
+    st.subheader(t("stores_rev_by_store"))
+    st.bar_chart(df.set_index(store_col)[gross_col])
     st.dataframe(df, use_container_width=True, hide_index=True)
 
 
@@ -76,13 +81,18 @@ def _render_pos_revenue(filters: dict) -> None:
     )
     if df.empty:
         return
-    df.columns = ["POS ID", "Serial", "Store", "Gross (€)", "Transactions"]
-    st.subheader("Revenue by POS terminal")
-    st.bar_chart(df.set_index("POS ID")["Gross (€)"])
+    pos_id_col = t("stores_col_pos_id")
+    serial_col = t("stores_col_serial")
+    store_col = t("stores_col_store")
+    gross_col = t("stores_col_gross")
+    txns_col = t("stores_col_txns")
+    df.columns = [pos_id_col, serial_col, store_col, gross_col, txns_col]
+    st.subheader(t("stores_rev_by_pos"))
+    st.bar_chart(df.set_index(pos_id_col)[gross_col])
     st.dataframe(df, use_container_width=True, hide_index=True)
 
-    total = df["Gross (€)"].sum()
-    st.caption(f"Total: € {total:,.2f}")
+    total = df[gross_col].sum()
+    st.caption(t("stores_total", n=total))
 
 
 def _render_operator_leaderboard(filters: dict) -> None:
@@ -105,13 +115,19 @@ def _render_operator_leaderboard(filters: dict) -> None:
     )
     if df.empty:
         return
-    df.columns = ["ID", "Operator", "Gross (€)", "Transactions", "Avg basket (€)"]
-    st.subheader("Operator leaderboard")
+    df.columns = [
+        t("stores_col_id"),
+        t("stores_col_operator"),
+        t("stores_col_gross"),
+        t("stores_col_txns"),
+        t("stores_col_avg_basket"),
+    ]
+    st.subheader(t("stores_operator_lb"))
     st.dataframe(df, use_container_width=True, hide_index=True)
 
 
 def _render_comparison(filters: dict) -> None:
-    st.subheader("Period comparison")
+    st.subheader(t("stores_period_comp"))
     start = filters["start"]
     end = filters["end"]
     span = (end - start).days + 1
@@ -136,10 +152,10 @@ def _render_comparison(filters: dict) -> None:
             st.markdown(f"**{label}**  \n{pstart} → {pend}")
             if not df.empty and not df["gross"].isna().all():
                 row = df.iloc[0]
-                st.metric("Gross", f"€ {row['gross']:,.2f}")
-                st.metric("Transactions", f"{int(row['txns']):,}")
+                st.metric(t("stores_gross"), f"€ {row['gross']:,.2f}")
+                st.metric(t("stores_col_txns"), f"{int(row['txns']):,}")
             else:
-                st.info("No data.")
+                st.info(t("stores_no_data"))
 
-    _period_metrics("Current period", start, end, c1)
-    _period_metrics("Previous period", prev_start, prev_end, c2)
+    _period_metrics(t("stores_current_period"), start, end, c1)
+    _period_metrics(t("stores_previous_period"), prev_start, prev_end, c2)

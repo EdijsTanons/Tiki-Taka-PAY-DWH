@@ -11,13 +11,14 @@ from tikitaka_dwh.ui.components import (
     error_card,
     query,
 )
+from tikitaka_dwh.ui.i18n import t
 
 
 def render() -> None:
-    st.title("Products")
+    st.title(t("prod_title"))
     filters = st.session_state.get("filters", {})
     if not filters:
-        st.warning("Apply filters in the sidebar.")
+        st.warning(t("apply_filters"))
         return
 
     try:
@@ -29,17 +30,20 @@ def render() -> None:
         st.divider()
         _render_daily_product_report(filters)
     except Exception as exc:
-        error_card("Products page error", exc)
+        error_card(t("prod_page_error"), exc)
 
 
 def _render_top_n(filters: dict) -> None:
+    rank_revenue = t("prod_rank_revenue")
+    rank_qty = t("prod_rank_qty")
+
     col_sort, col_n = st.columns([3, 1])
     with col_sort:
-        sort_by = st.radio("Rank by", ["Revenue", "Quantity"], horizontal=True, key="prod_sort")
+        sort_by = st.radio(t("prod_rank_by"), [rank_revenue, rank_qty], horizontal=True, key="prod_sort")
     with col_n:
-        top_n = st.selectbox("Top N", [10, 20, 50], key="prod_topn")
+        top_n = st.selectbox(t("prod_top_n"), [10, 20, 50], key="prod_topn")
 
-    order_col = "gross" if sort_by == "Revenue" else "qty"
+    order_col = "gross" if sort_by == rank_revenue else "qty"
     where, params = date_store_pos_where(filters, alias="fd")
     df = query(
         f"""
@@ -60,14 +64,24 @@ def _render_top_n(filters: dict) -> None:
         params,
     )
     if df.empty:
-        st.info("No product data for the selected period.")
+        st.info(t("prod_no_data"))
         return
 
-    label = f"Top {top_n} products by {sort_by.lower()}"
+    label = t("prod_top_label", n=top_n, sort=sort_by.lower())
     st.subheader(label)
+
+    prod_col = t("prod_col_product")
+    dept_col = t("prod_col_dept")
+    qty_col = t("prod_col_qty")
+    rev_col = t("prod_col_revenue")
+
     display = df[["Product", "Department", "qty", "gross"]].copy()
-    display.columns = ["Product", "Department", "Qty", "Revenue (€)"]
-    st.bar_chart(display.set_index("Product")["Revenue (€)"] if sort_by == "Revenue" else display.set_index("Product")["Qty"])
+    display.columns = [prod_col, dept_col, qty_col, rev_col]
+    st.bar_chart(
+        display.set_index(prod_col)[rev_col]
+        if sort_by == rank_revenue
+        else display.set_index(prod_col)[qty_col]
+    )
     st.dataframe(display, use_container_width=True, hide_index=True)
 
 
@@ -88,13 +102,13 @@ def _render_department_breakdown(filters: dict) -> None:
     )
     if df.empty:
         return
-    st.subheader("Revenue by department")
+    st.subheader(t("prod_dept_chart"))
     st.bar_chart(df.set_index("department")["gross"])
 
 
 def _render_product_table(filters: dict) -> None:
-    st.subheader("Product search")
-    search = st.text_input("Search product name or code", key="prod_search")
+    st.subheader(t("prod_search_section"))
+    search = st.text_input(t("prod_search_input"), key="prod_search")
     where, params = date_store_pos_where(filters, alias="fd")
 
     search_clause = ""
@@ -102,59 +116,77 @@ def _render_product_table(filters: dict) -> None:
         search_clause = "AND (LOWER(sl.product_name) LIKE ? OR LOWER(sl.product_code) LIKE ?)"
         params = params + [f"%{search.lower()}%", f"%{search.lower()}%"]
 
+    code_col = t("prod_col_code")
+    prod_col = t("prod_col_product")
+    dept_col = t("prod_col_dept")
+    qty_col = t("prod_col_qty")
+    rev_col = t("prod_col_revenue")
+    avg_col = t("prod_col_avg_price")
+    lines_col = t("prod_col_lines")
+
     df = query(
         f"""
         SELECT
-            sl.product_code     AS "Code",
-            sl.product_name     AS "Product",
-            sl.department       AS "Department",
-            SUM(sl.quantity)    AS "Qty",
-            SUM(sl.total_sum)   AS "Revenue (€)",
-            AVG(sl.price)       AS "Avg price (€)",
-            COUNT(*)            AS "Lines"
+            sl.product_code     AS "{code_col}",
+            sl.product_name     AS "{prod_col}",
+            sl.department       AS "{dept_col}",
+            SUM(sl.quantity)    AS "{qty_col}",
+            SUM(sl.total_sum)   AS "{rev_col}",
+            AVG(sl.price)       AS "{avg_col}",
+            COUNT(*)            AS "{lines_col}"
         FROM fct_sale_lines sl
         JOIN fct_documents fd ON sl.doc_id = fd.id
         WHERE {where} {search_clause}
         GROUP BY sl.product_code, sl.product_name, sl.department
-        ORDER BY "Revenue (€)" DESC
+        ORDER BY "{rev_col}" DESC
         """,
         params,
     )
     if df.empty:
-        st.info("No products match.")
+        st.info(t("prod_no_match"))
         return
     st.dataframe(df, use_container_width=True, hide_index=True)
     csv_download_button(df, "products.csv")
 
 
 def _render_daily_product_report(filters: dict) -> None:
-    st.subheader("Sold products by day")
+    st.subheader(t("prod_daily_section"))
     where, params = date_store_pos_where(filters, alias="fd")
+
+    date_col = t("prod_col_date")
+    code_col = t("prod_col_code")
+    prod_col = t("prod_col_product")
+    dept_col = t("prod_col_dept")
+    qty_col = t("prod_col_qty")
+    rev_col = t("prod_col_revenue")
+    avg_col = t("prod_col_avg_price")
+    lines_col = t("prod_col_lines")
+
     df = query(
         f"""
         SELECT
-            sl.doc_date             AS "Date",
-            sl.product_code         AS "Code",
-            sl.product_name         AS "Product",
-            sl.department           AS "Department",
-            SUM(sl.quantity)        AS "Qty",
-            SUM(sl.total_sum)       AS "Revenue (€)",
-            AVG(sl.price)           AS "Avg price (€)",
-            COUNT(*)                AS "Lines"
+            sl.doc_date             AS "{date_col}",
+            sl.product_code         AS "{code_col}",
+            sl.product_name         AS "{prod_col}",
+            sl.department           AS "{dept_col}",
+            SUM(sl.quantity)        AS "{qty_col}",
+            SUM(sl.total_sum)       AS "{rev_col}",
+            AVG(sl.price)           AS "{avg_col}",
+            COUNT(*)                AS "{lines_col}"
         FROM fct_sale_lines sl
         JOIN fct_documents fd ON sl.doc_id = fd.id
         WHERE {where}
         GROUP BY sl.doc_date, sl.product_code, sl.product_name, sl.department
-        ORDER BY sl.doc_date DESC, "Revenue (€)" DESC
+        ORDER BY sl.doc_date DESC, "{rev_col}" DESC
         """,
         params,
     )
     if df.empty:
-        st.info("No data for the selected period.")
+        st.info(t("prod_no_period_data"))
         return
     st.dataframe(df, use_container_width=True, hide_index=True)
     col1, col2 = st.columns(2)
     with col1:
-        csv_download_button(df, "products_by_day.csv", "Export CSV")
+        csv_download_button(df, "products_by_day.csv")
     with col2:
-        excel_download_button(df, "products_by_day.xlsx", "Export Excel")
+        excel_download_button(df, "products_by_day.xlsx")
