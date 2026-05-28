@@ -2,7 +2,7 @@
 
 **Version 0.2.0**
 
-Offline-first analytics desktop application for Tikitaka POS clients. All data stays local — no cloud, no telemetry.
+Offline-first analytics desktop application for Tiki-Taka PAY clients. All data stays local — no cloud, no telemetry.
 
 **Stack:** Streamlit UI · DuckDB warehouse · PyInstaller Windows exe · NSIS installer · Python 3.11+ · `uv`
 
