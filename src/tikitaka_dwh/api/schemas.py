@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -10,72 +10,72 @@ from pydantic import BaseModel, Field, field_validator
 class ApiPayment(BaseModel):
     model_config = {"extra": "allow"}
 
-    payment_type: Optional[str] = None
-    payment_method: Optional[str] = None
-    amount: Optional[float] = None
-    card_type: Optional[str] = None
-    card_pan: Optional[str] = None
-    card_tid: Optional[str] = None
-    card_reference_number: Optional[str] = None
-    gift_card_number: Optional[str] = None
+    payment_type: str | None = None
+    payment_method: str | None = None
+    amount: float | None = None
+    card_type: str | None = None
+    card_pan: str | None = None
+    card_tid: str | None = None
+    card_reference_number: str | None = None
+    gift_card_number: str | None = None
 
 
 class ApiSoldProduct(BaseModel):
     model_config = {"extra": "allow"}
 
-    product_code: Optional[str] = None
-    product_name: Optional[str] = None
-    department: Optional[str] = None
-    quantity: Optional[float] = None
-    unit: Optional[str] = None
-    price: Optional[float] = None
-    product_sum: Optional[float] = None
-    discount: Optional[float] = None
-    product_discount: Optional[float] = None
-    discount_type: Optional[str] = None
-    excise: Optional[float] = None
-    sum_without_vat: Optional[float] = None
-    vat_sum: Optional[float] = None
-    vat_rate: Optional[float] = None
-    vat_title: Optional[str] = None
-    total_sum: Optional[float] = None
-    row_type: Optional[str] = None
-    pos_code: Optional[str] = None
+    product_code: str | None = None
+    product_name: str | None = None
+    department: str | None = None
+    quantity: float | None = None
+    unit: str | None = None
+    price: float | None = None
+    product_sum: float | None = None
+    discount: float | None = None
+    product_discount: float | None = None
+    discount_type: str | None = None
+    excise: float | None = None
+    sum_without_vat: float | None = None
+    vat_sum: float | None = None
+    vat_rate: float | None = None
+    vat_title: str | None = None
+    total_sum: float | None = None
+    row_type: str | None = None
+    pos_code: str | None = None
 
 
 class ApiDocument(BaseModel):
     model_config = {"extra": "allow"}
 
     id: int
-    doc_uid: Optional[int] = None
-    doc_num: Optional[int] = None
-    doc_datetime: Optional[str] = None
-    doc_sha: Optional[str] = None
-    dok_operation: Optional[str] = None
-    store_number: Optional[str] = None
-    title: Optional[str] = None
-    device_serial_number: Optional[str] = None
-    id_device: Optional[int] = None
-    non_fiscal: Optional[bool] = None
-    id_device_fiscof: Optional[Any] = None
-    doc_sum: Optional[float] = None
-    operator_id: Optional[str] = None
-    operator_name: Optional[str] = None
+    doc_uid: int | None = None
+    doc_num: int | None = None
+    doc_datetime: str | None = None
+    doc_sha: str | None = None
+    dok_operation: str | None = None
+    store_number: str | None = None
+    title: str | None = None
+    device_serial_number: str | None = None
+    id_device: int | None = None
+    non_fiscal: bool | None = None
+    id_device_fiscof: Any | None = None
+    doc_sum: float | None = None
+    operator_id: str | None = None
+    operator_name: str | None = None
     payments: list[ApiPayment] = Field(default_factory=list)
-    payment_type: Optional[str] = None
-    payment_method: Optional[str] = None
-    currency: Optional[str] = None
-    card_type: Optional[str] = None
-    card_pan: Optional[str] = None
-    card_tid: Optional[str] = None
-    card_reference_number: Optional[str] = None
-    gift_card_number: Optional[str] = None
-    client_reg_number: Optional[str] = None
-    client_title: Optional[str] = None
-    customer_card_name: Optional[str] = None
-    customer_card_number: Optional[str] = None
+    payment_type: str | None = None
+    payment_method: str | None = None
+    currency: str | None = None
+    card_type: str | None = None
+    card_pan: str | None = None
+    card_tid: str | None = None
+    card_reference_number: str | None = None
+    gift_card_number: str | None = None
+    client_reg_number: str | None = None
+    client_title: str | None = None
+    customer_card_name: str | None = None
+    customer_card_number: str | None = None
     sold_products: list[ApiSoldProduct] = Field(default_factory=list)
-    doc: Optional[str] = None  # raw XML
+    doc: str | None = None  # raw XML
 
     @field_validator("payments", "sold_products", mode="before")
     @classmethod

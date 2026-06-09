@@ -4,15 +4,18 @@ from __future__ import annotations
 
 import asyncio
 import io
+import logging
 import threading
 from collections.abc import Coroutine
 from datetime import date, timedelta
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import duckdb
 import pandas as pd
 import streamlit as st
+
+logger = logging.getLogger(__name__)
 
 
 def run_async(coro: Coroutine[Any, Any, Any]) -> Any:
@@ -65,7 +68,13 @@ def get_db_path() -> Path:
     return get_settings().app_data_dir / "warehouse.duckdb"
 
 
-def query(sql: str, params: list | None = None) -> pd.DataFrame:
+@st.cache_data(ttl=300, show_spinner=False)
+def query(sql: str, params: list[Any] | None = None) -> pd.DataFrame:
+    """Run a read-only warehouse query, cached per (sql, params).
+
+    Every sync/load path calls ``st.cache_data.clear()`` afterwards; the TTL
+    is only a safety net for out-of-band writes (e.g. build_from_raw.py).
+    """
     db = get_db_path()
     if not db.exists():
         return pd.DataFrame()
@@ -75,6 +84,9 @@ def query(sql: str, params: list | None = None) -> pd.DataFrame:
             return con.execute(sql, params).df()
         return con.execute(sql).df()
     except Exception:
+        # Pages treat an empty frame as "no data", so without this log a SQL
+        # error would be indistinguishable from an empty warehouse.
+        logger.exception("Warehouse query failed: %s", " ".join(sql.split()))
         return pd.DataFrame()
     finally:
         con.close()
@@ -86,10 +98,15 @@ def warehouse_exists() -> bool:
         return False
     try:
         con = duckdb.connect(str(db), read_only=True)
-        con.execute("SELECT 1 FROM fct_documents LIMIT 1")
-        con.close()
+        try:
+            con.execute("SELECT 1 FROM fct_documents LIMIT 1")
+        finally:
+            con.close()
         return True
     except Exception:
+        # Expected on a fresh DB before migrations; debug level avoids
+        # spamming the log on every rerun while keeping corruption visible.
+        logger.debug("Warehouse existence check failed for %s", db, exc_info=True)
         return False
 
 
@@ -98,7 +115,7 @@ def warehouse_exists() -> bool:
 # ---------------------------------------------------------------------------
 
 
-def render_sidebar_filters() -> dict:
+def render_sidebar_filters() -> dict[str, Any]:
     """Render date-range + store + POS filters. Returns dict of active values."""
     from tikitaka_dwh.ui.i18n import t
 
@@ -126,13 +143,13 @@ def render_sidebar_filters() -> dict:
     }
 
 
-def date_store_pos_where(filters: dict, alias: str = "") -> tuple[str, list]:
+def date_store_pos_where(filters: dict[str, Any], alias: str = "") -> tuple[str, list[Any]]:
     """Return (WHERE snippet, params) for the standard filters."""
     pre = f"{alias}." if alias else ""
     clauses = [
         f"{pre}doc_date BETWEEN ? AND ?",
     ]
-    params: list = [str(filters["start"]), str(filters["end"])]
+    params: list[Any] = [str(filters["start"]), str(filters["end"])]
 
     if filters["stores"]:
         placeholders = ", ".join("?" * len(filters["stores"]))
@@ -183,13 +200,13 @@ def render_sync_button() -> None:
 def _run_sync() -> None:
     import httpx
 
-    from tikitaka_dwh.auth import TokenProvider, load_credentials
     from tikitaka_dwh.api.client import TikitakaClient
+    from tikitaka_dwh.auth import TokenProvider, load_credentials
     from tikitaka_dwh.config import get_settings
     from tikitaka_dwh.sync.engine import SyncEngine
     from tikitaka_dwh.sync.watermark import WatermarkStore
-    from tikitaka_dwh.warehouse.db import initialize_warehouse, load_staging_to_warehouse
     from tikitaka_dwh.ui.i18n import t
+    from tikitaka_dwh.warehouse.db import initialize_warehouse, load_staging_to_warehouse
 
     settings = get_settings()
     creds = load_credentials()
@@ -273,6 +290,7 @@ def excel_download_button(df: pd.DataFrame, filename: str, label: str | None = N
 
 def error_card(title: str, exc: Exception) -> None:
     import traceback
+
     from tikitaka_dwh.ui.i18n import t
 
     diag = traceback.format_exc()

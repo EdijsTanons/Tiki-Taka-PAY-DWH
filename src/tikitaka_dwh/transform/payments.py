@@ -5,14 +5,14 @@ from __future__ import annotations
 import logging
 from collections.abc import Iterable
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import pandas as pd
 
 logger = logging.getLogger(__name__)
 
 
-def _mask_pan(pan: Optional[str]) -> Optional[str]:
+def _mask_pan(pan: str | None) -> str | None:
     if not pan:
         return None
     digits = pan.replace(" ", "").replace("-", "")
@@ -25,7 +25,7 @@ def build_payments(raw_docs: Iterable[dict[str, Any]]) -> pd.DataFrame:
     for doc in raw_docs:
         doc_id = doc.get("id")
         doc_date_str = doc.get("doc_datetime")
-        doc_date: Optional[Any] = None
+        doc_date: Any | None = None
         if doc_date_str:
             try:
                 from datetime import datetime

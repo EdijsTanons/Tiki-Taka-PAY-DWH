@@ -18,9 +18,9 @@ logger = logging.getLogger(__name__)
 async def _run(mode: str) -> None:
     import httpx
 
-    from tikitaka_dwh.auth import TokenProvider, load_credentials
     from tikitaka_dwh.api.client import TikitakaClient
-    from tikitaka_dwh.config import get_settings, ensure_app_dirs
+    from tikitaka_dwh.auth import TokenProvider, load_credentials
+    from tikitaka_dwh.config import ensure_app_dirs, get_settings
     from tikitaka_dwh.observability.logging import configure_logging
     from tikitaka_dwh.sync.engine import SyncEngine
     from tikitaka_dwh.sync.watermark import WatermarkStore

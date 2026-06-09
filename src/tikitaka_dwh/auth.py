@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import base64
+import contextlib
 import hashlib
 import logging
 import os
 import secrets
 import time
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable, Optional
 
 import httpx
 import jwt
@@ -90,7 +91,6 @@ def _get_fernet_key() -> bytes:
     1. TIKITAKA_CRED_PASSPHRASE env var (enterprise deployments / MDM-managed).
     2. Per-machine random key stored in .credentials.key (generated on first use).
     """
-    from cryptography.fernet import Fernet
 
     passphrase = os.environ.get("TIKITAKA_CRED_PASSPHRASE")
     if passphrase:
@@ -106,10 +106,8 @@ def _get_fernet_key() -> bytes:
     raw = secrets.token_bytes(32)
     key_path.parent.mkdir(parents=True, exist_ok=True)
     key_path.write_bytes(raw)
-    try:
+    with contextlib.suppress(AttributeError):  # Windows does not support POSIX chmod
         key_path.chmod(0o600)
-    except AttributeError:
-        pass  # Windows does not support POSIX chmod
     logger.info("Generated new per-machine credential key at %s", key_path)
     return base64.urlsafe_b64encode(raw)
 
@@ -123,10 +121,8 @@ def _file_save(username: str, password: str) -> None:
     path = _fallback_path()
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(encrypted)
-    try:
+    with contextlib.suppress(AttributeError):  # Windows does not support POSIX chmod
         path.chmod(0o600)
-    except AttributeError:
-        pass  # Windows does not support POSIX chmod
     logger.info("Credentials saved to encrypted file fallback: %s", path)
 
 
@@ -173,7 +169,7 @@ class TokenProvider:
         self._password_fn = password_provider
         self._base_url = base_url.rstrip("/")
         self._http = http_client
-        self._token: Optional[str] = None
+        self._token: str | None = None
         self._exp: float = 0.0
 
     async def get_token(self) -> str:

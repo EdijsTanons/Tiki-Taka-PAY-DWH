@@ -13,7 +13,7 @@ _LANG_OPTIONS = {
 
 
 def current_lang() -> str:
-    return st.session_state.get("lang", "en")
+    return str(st.session_state.get("lang", "en"))
 
 
 def t(key: str, **kwargs: object) -> str:
@@ -62,6 +62,8 @@ _EN: dict[str, str] = {
     # Sidebar
     "sidebar_title": "Tiki-Taka PAY DWH",
     "sidebar_filters": "Filters",
+    "sidebar_navigate": "Navigate",
+    "page_load_error": "Page '{page}' failed to load",
     "sidebar_date_from": "From",
     "sidebar_date_to": "To",
     "sidebar_stores": "Stores",
@@ -105,6 +107,8 @@ _EN: dict[str, str] = {
     "onb_connecting": "Connecting …",
     "onb_conn_ok": "Connection successful! {msg}",
     "onb_conn_fail": "Connection failed: {msg}",
+    "onb_conn_token_ok": "Token acquired (length {n}).",
+    "onb_conn_invalid_401": "Invalid credentials (401). Check your username and password.",
     "onb_save_continue": "Save & continue →",
     "onb_back": "← Back",
     "onb_step3_heading": "### Step 3 of 3 — Initial data sync",
@@ -177,6 +181,8 @@ _EN: dict[str, str] = {
     "diag_loading_docs": "Loading {n:,} documents …",
     "diag_rebuild_done": "Done — {rows:,} documents loaded into warehouse.",
     "diag_watermark_set": "  Watermark set to max_id={mid}.",
+    "diag_unreadable_files": "{n} raw file(s) could not be read and were skipped — the warehouse may be missing documents. See the log for details.",
+    "diag_watermark_skipped": "The watermark was NOT updated, so the missing documents can still be downloaded.",
     "diag_error": "Diagnostics error",
     "diag_raw_error": "Raw data section error",
     # Revenue page
@@ -338,6 +344,8 @@ _LV: dict[str, str] = {
     "nav_diagnostics": "Diagnostika",
     "sidebar_title": "Tiki-Taka PAY DWH",
     "sidebar_filters": "Filtri",
+    "sidebar_navigate": "Navigācija",
+    "page_load_error": "Lapu '{page}' neizdevās ielādēt",
     "sidebar_date_from": "No",
     "sidebar_date_to": "Līdz",
     "sidebar_stores": "Veikali",
@@ -376,6 +384,8 @@ _LV: dict[str, str] = {
     "onb_connecting": "Savienojums …",
     "onb_conn_ok": "Savienojums veiksmīgs! {msg}",
     "onb_conn_fail": "Savienojums neizdevās: {msg}",
+    "onb_conn_token_ok": "Pilnvaras marķieris saņemts (garums {n}).",
+    "onb_conn_invalid_401": "Nederīgi pieteikšanās dati (401). Pārbaudiet lietotājvārdu un paroli.",
     "onb_save_continue": "Saglabāt un turpināt →",
     "onb_back": "← Atpakaļ",
     "onb_step3_heading": "### 3. solis no 3 — Sākotnējā datu sinhronizācija",
@@ -445,6 +455,8 @@ _LV: dict[str, str] = {
     "diag_loading_docs": "Ielādē {n:,} dokumentus …",
     "diag_rebuild_done": "Gatavs — {rows:,} dokumenti ielādēti noliktavā.",
     "diag_watermark_set": "  Ūdenszīme iestatīta uz max_id={mid}.",
+    "diag_unreadable_files": "Neizdevās nolasīt {n} jēldatu failu(-s) — tie tika izlaisti, un noliktavā var trūkt dokumentu. Sīkāka informācija žurnālā.",
+    "diag_watermark_skipped": "Ūdenszīme NETIKA atjaunināta, tāpēc trūkstošos dokumentus joprojām var lejupielādēt.",
     "diag_error": "Diagnostikas kļūda",
     "diag_raw_error": "Neapstrādātu datu sadaļas kļūda",
     "rev_title": "Ieņēmumi",
@@ -601,6 +613,8 @@ _LT: dict[str, str] = {
     "nav_diagnostics": "Diagnostika",
     "sidebar_title": "Tiki-Taka PAY DWH",
     "sidebar_filters": "Filtrai",
+    "sidebar_navigate": "Navigacija",
+    "page_load_error": "Nepavyko įkelti puslapio '{page}'",
     "sidebar_date_from": "Nuo",
     "sidebar_date_to": "Iki",
     "sidebar_stores": "Parduotuvės",
@@ -639,6 +653,8 @@ _LT: dict[str, str] = {
     "onb_connecting": "Jungiamasi …",
     "onb_conn_ok": "Ryšys sėkmingas! {msg}",
     "onb_conn_fail": "Ryšys nepavyko: {msg}",
+    "onb_conn_token_ok": "Prieigos raktas gautas (ilgis {n}).",
+    "onb_conn_invalid_401": "Neteisingi prisijungimo duomenys (401). Patikrinkite naudotojo vardą ir slaptažodį.",
     "onb_save_continue": "Išsaugoti ir tęsti →",
     "onb_back": "← Atgal",
     "onb_step3_heading": "### 3 žingsnis iš 3 — Pradinis duomenų sinchronizavimas",
@@ -708,6 +724,8 @@ _LT: dict[str, str] = {
     "diag_loading_docs": "Įkeliami {n:,} dokumentai …",
     "diag_rebuild_done": "Atlikta — {rows:,} dokumentai įkelti į sandėlį.",
     "diag_watermark_set": "  Žymė nustatyta į max_id={mid}.",
+    "diag_unreadable_files": "Nepavyko perskaityti {n} neapdorotų failų — jie praleisti, todėl sandėlyje gali trūkti dokumentų. Daugiau informacijos žurnale.",
+    "diag_watermark_skipped": "Žymė NEBUVO atnaujinta, todėl trūkstamus dokumentus vis dar galima atsisiųsti.",
     "diag_error": "Diagnostikos klaida",
     "diag_raw_error": "Neapdorotų duomenų sekcijos klaida",
     "rev_title": "Pajamos",
@@ -864,6 +882,8 @@ _ET: dict[str, str] = {
     "nav_diagnostics": "Diagnostika",
     "sidebar_title": "Tiki-Taka PAY DWH",
     "sidebar_filters": "Filtrid",
+    "sidebar_navigate": "Navigeerimine",
+    "page_load_error": "Lehe '{page}' laadimine ebaõnnestus",
     "sidebar_date_from": "Alates",
     "sidebar_date_to": "Kuni",
     "sidebar_stores": "Kauplused",
@@ -902,6 +922,8 @@ _ET: dict[str, str] = {
     "onb_connecting": "Ühendamine …",
     "onb_conn_ok": "Ühendus õnnestus! {msg}",
     "onb_conn_fail": "Ühendus ebaõnnestus: {msg}",
+    "onb_conn_token_ok": "Pääsutõend saadud (pikkus {n}).",
+    "onb_conn_invalid_401": "Vigased sisselogimisandmed (401). Kontrollige kasutajanime ja parooli.",
     "onb_save_continue": "Salvesta ja jätka →",
     "onb_back": "← Tagasi",
     "onb_step3_heading": "### 3. samm 3-st — Esmane andmete sünkroonimine",
@@ -971,6 +993,8 @@ _ET: dict[str, str] = {
     "diag_loading_docs": "Laaditakse {n:,} dokumenti …",
     "diag_rebuild_done": "Valmis — {rows:,} dokumenti laaditud lattu.",
     "diag_watermark_set": "  Vesimärk seatud väärtusele max_id={mid}.",
+    "diag_unreadable_files": "{n} toorandmefaili ei õnnestunud lugeda ja need jäeti vahele — laost võib dokumente puududa. Vt logist üksikasju.",
+    "diag_watermark_skipped": "Vesimärki EI uuendatud, seega puuduvad dokumendid saab endiselt alla laadida.",
     "diag_error": "Diagnostika viga",
     "diag_raw_error": "Toorte andmete sektsiooni viga",
     "rev_title": "Tulu",

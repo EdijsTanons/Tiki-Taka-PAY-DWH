@@ -28,7 +28,7 @@ def _acquire_single_instance_lock() -> socket.socket | None:
 def _free_port() -> int:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind(("127.0.0.1", 0))
-        return s.getsockname()[1]
+        return int(s.getsockname()[1])
 
 
 def _open_browser_when_ready(url: str, port: int, timeout: float = 60.0) -> None:
@@ -69,7 +69,7 @@ def main() -> None:
 
     if getattr(sys, "frozen", False):
         # PyInstaller bundle: _MEIPASS is the _internal/ directory
-        ui_app = Path(sys._MEIPASS) / "tikitaka_dwh" / "ui" / "app.py"
+        ui_app = Path(sys._MEIPASS) / "tikitaka_dwh" / "ui" / "app.py"  # type: ignore[attr-defined]
     else:
         ui_app = Path(__file__).parent / "ui" / "app.py"
     port = _free_port()

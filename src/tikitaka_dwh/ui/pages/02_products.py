@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import streamlit as st
 
 from tikitaka_dwh.ui.components import (
     csv_download_button,
-    excel_download_button,
     date_store_pos_where,
     error_card,
+    excel_download_button,
     query,
 )
 from tikitaka_dwh.ui.i18n import t
@@ -33,7 +35,7 @@ def render() -> None:
         error_card(t("prod_page_error"), exc)
 
 
-def _render_top_n(filters: dict) -> None:
+def _render_top_n(filters: dict[str, Any]) -> None:
     rank_revenue = t("prod_rank_revenue")
     rank_qty = t("prod_rank_qty")
 
@@ -85,7 +87,7 @@ def _render_top_n(filters: dict) -> None:
     st.dataframe(display, use_container_width=True, hide_index=True)
 
 
-def _render_department_breakdown(filters: dict) -> None:
+def _render_department_breakdown(filters: dict[str, Any]) -> None:
     where, params = date_store_pos_where(filters, alias="fd")
     df = query(
         f"""
@@ -106,7 +108,7 @@ def _render_department_breakdown(filters: dict) -> None:
     st.bar_chart(df.set_index("department")["gross"])
 
 
-def _render_product_table(filters: dict) -> None:
+def _render_product_table(filters: dict[str, Any]) -> None:
     st.subheader(t("prod_search_section"))
     search = st.text_input(t("prod_search_input"), key="prod_search")
     where, params = date_store_pos_where(filters, alias="fd")
@@ -114,7 +116,7 @@ def _render_product_table(filters: dict) -> None:
     search_clause = ""
     if search:
         search_clause = "AND (LOWER(sl.product_name) LIKE ? OR LOWER(sl.product_code) LIKE ?)"
-        params = params + [f"%{search.lower()}%", f"%{search.lower()}%"]
+        params = [*params, f"%{search.lower()}%", f"%{search.lower()}%"]
 
     code_col = t("prod_col_code")
     prod_col = t("prod_col_product")
@@ -138,7 +140,7 @@ def _render_product_table(filters: dict) -> None:
         JOIN fct_documents fd ON sl.doc_id = fd.id
         WHERE {where} {search_clause}
         GROUP BY sl.product_code, sl.product_name, sl.department
-        ORDER BY "{rev_col}" DESC
+        ORDER BY 5 DESC  -- revenue; positional because column aliases are translated
         """,
         params,
     )
@@ -149,7 +151,7 @@ def _render_product_table(filters: dict) -> None:
     csv_download_button(df, "products.csv")
 
 
-def _render_daily_product_report(filters: dict) -> None:
+def _render_daily_product_report(filters: dict[str, Any]) -> None:
     st.subheader(t("prod_daily_section"))
     where, params = date_store_pos_where(filters, alias="fd")
 
@@ -177,7 +179,7 @@ def _render_daily_product_report(filters: dict) -> None:
         JOIN fct_documents fd ON sl.doc_id = fd.id
         WHERE {where}
         GROUP BY sl.doc_date, sl.product_code, sl.product_name, sl.department
-        ORDER BY sl.doc_date DESC, "{rev_col}" DESC
+        ORDER BY 1 DESC, 6 DESC  -- date, revenue; positional because aliases are translated
         """,
         params,
     )

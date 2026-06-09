@@ -49,8 +49,11 @@ The remote is `https://github.com/EdijsTanons/Tiki-Taka-PAY-DWH.git`.
 - **Venv location:** `c:\Users\edijs.tanons\Documents\Git\TikiTaka DWH\.venv\Scripts\`  
   (`uv` is not on PATH — always use venv binaries directly)
 - **PyInstaller spec:** `packaging/pyinstaller.spec` (one-folder build → `dist/TikiTakaPAYDWH/`)
-- **NSIS script:** `packaging/windows/installer.nsi`  
-  Version defines at top: `APP_VERSION`, `VER_MAJOR`, `VER_MINOR` — bump all three when releasing a new version, along with `pyproject.toml` and `src/tikitaka_dwh/__init__.py`
+- **NSIS script:** `packaging/windows/installer.nsi`
+- **Version bump:** never edit version strings by hand — run
+  `.venv\Scripts\python.exe scripts\bump_version.py X.Y.Z`
+  (updates pyproject.toml, `__init__.py`, installer.nsi, Info.plist and AppImageBuilder.yml in one go)
 - **Hidden imports:** all `tikitaka_dwh.*` modules must be listed in `pyinstaller.spec`'s `hidden` list — new UI modules added without updating this list cause silent runtime crashes in the packaged exe
 - **Data dir** (`%LOCALAPPDATA%\TikiTakaPAYDWH`) is separate from the install dir (`%LOCALAPPDATA%\Programs\TikiTakaPAYDWH`) — the NSIS installer/uninstaller intentionally never touches the data dir
-- **50 tests** in `tests/` — run all of them; none should be skipped
+- Run the **full test suite** in `tests/` — all must pass; none should be skipped
+- **CI:** `.github/workflows/ci.yml` runs ruff + mypy + pytest on every push — keep all three green locally before pushing

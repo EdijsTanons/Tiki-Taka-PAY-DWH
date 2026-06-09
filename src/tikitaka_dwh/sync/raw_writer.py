@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -18,7 +18,7 @@ class RawWriter:
         self._seq = 0
 
     def write_page(self, docs: list[dict[str, Any]], page_date: datetime | None = None) -> Path:
-        dt = (page_date or datetime.now(timezone.utc)).strftime("%Y-%m-%d")
+        dt = (page_date or datetime.now(UTC)).strftime("%Y-%m-%d")
         dest_dir = self._raw_dir / f"dt={dt}"
         dest_dir.mkdir(parents=True, exist_ok=True)
         path = dest_dir / f"page_{self._run_id}_{self._seq:04d}.json"

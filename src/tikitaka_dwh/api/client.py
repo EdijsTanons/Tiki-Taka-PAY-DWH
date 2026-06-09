@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections.abc import AsyncIterator
-from typing import Optional
 
 import httpx
 
@@ -27,7 +26,7 @@ class TikitakaClient:
         self,
         base_url: str,
         token_provider: TokenProvider,
-        http_client: Optional[httpx.AsyncClient] = None,
+        http_client: httpx.AsyncClient | None = None,
     ) -> None:
         self._base_url = base_url.rstrip("/")
         self._token_provider = token_provider
@@ -59,7 +58,7 @@ class TikitakaClient:
         params: dict[str, str],
         max_retries: int = _MAX_RETRIES,
     ) -> ApiListResponse:
-        last_exc: Optional[Exception] = None
+        last_exc: Exception | None = None
         reauthed = False
         attempt = 0
 
@@ -99,7 +98,7 @@ class TikitakaClient:
         self,
         skip: int,
         limit: int,
-    ) -> "ApiListResponse | None":
+    ) -> ApiListResponse | None:
         """Fetch a page, returning None if the API returns 500 even for limit=1.
 
         Uses a single retry (no exponential backoff) in isolation mode so that
@@ -132,10 +131,10 @@ class TikitakaClient:
     async def iter_documents(
         self,
         start_skip: int = 0,
-        stop_at_id: Optional[int] = None,
+        stop_at_id: int | None = None,
     ) -> AsyncIterator[ApiDocument]:
         skip = start_skip
-        total: Optional[int] = None
+        total: int | None = None
         limit = _DEFAULT_LIMIT
         # Tracks how many consecutive single-document failures we've seen so
         # we can skip ahead rather than grinding through a corrupt range.

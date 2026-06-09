@@ -6,13 +6,10 @@ import asyncio
 import json
 import uuid
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock
-
-import pytest
+from unittest.mock import MagicMock
 
 from tikitaka_dwh.sync.watermark import WatermarkStore
 from tikitaka_dwh.warehouse.db import audit_raw, initialize_warehouse, rebuild_from_raw
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -90,6 +87,7 @@ def test_audit_raw_empty(tmp_path: Path) -> None:
     stats = audit_raw(raw_dir)
     assert stats == {
         "files": 0,
+        "failed_files": 0,
         "total_docs": 0,
         "unique_ids": 0,
         "duplicate_docs": 0,
@@ -168,6 +166,39 @@ def test_rebuild_from_raw_sets_watermark_when_requested(tmp_path: Path, sample_d
     assert result["max_id"] == expected_max
 
 
+def test_audit_raw_counts_unreadable_files(tmp_path: Path) -> None:
+    raw_dir = tmp_path / "raw"
+    _write_raw_page(raw_dir, [_make_doc(1), _make_doc(2)])
+    corrupt = raw_dir / "dt=2024-03-15" / "page_corrupt_0000.json"
+    corrupt.write_text("{not valid json", encoding="utf-8")
+
+    stats = audit_raw(raw_dir)
+    assert stats["files"] == 2
+    assert stats["failed_files"] == 1
+    assert stats["unique_ids"] == 2
+
+
+def test_rebuild_from_raw_skips_watermark_on_unreadable_files(
+    tmp_path: Path, sample_docs: list
+) -> None:
+    raw_dir = tmp_path / "raw"
+    db_path = tmp_path / "wh.duckdb"
+    initialize_warehouse(db_path)
+    wm = WatermarkStore(db_path)
+
+    _write_raw_page(raw_dir, sample_docs)
+    corrupt = raw_dir / "dt=2024-03-15" / "page_corrupt_0000.json"
+    corrupt.write_text("{not valid json", encoding="utf-8")
+
+    result = rebuild_from_raw(db_path, raw_dir, watermark=wm, set_watermark=True)
+
+    # Readable docs are still loaded, but the watermark must NOT advance past
+    # documents that may sit in the unreadable file.
+    assert result["failed_files"] == 1
+    assert result["warehouse_rows"] == len(sample_docs)
+    assert wm.get_last_seen_id() is None
+
+
 # ---------------------------------------------------------------------------
 # SyncEngine — resumable backfill
 # ---------------------------------------------------------------------------
@@ -192,10 +223,8 @@ def _make_mock_client(docs: list[dict]) -> MagicMock:
 
 def test_backfill_checkpoints_and_resumes(tmp_path: Path) -> None:
     """Simulate a mid-run interruption and verify the resume picks up correctly."""
-    from tikitaka_dwh.sync.engine import SyncEngine, _CHECKPOINT_EVERY
+    from tikitaka_dwh.sync.engine import SyncEngine
 
-    # 15 docs (IDs 15 down to 1, DESC order from API)
-    docs = [_make_doc(i) for i in range(15, 0, -1)]
     db_path = tmp_path / "wh.duckdb"
     initialize_warehouse(db_path)
     wm = WatermarkStore(db_path)

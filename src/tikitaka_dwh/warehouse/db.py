@@ -4,12 +4,15 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Optional
+from typing import TYPE_CHECKING
 
 import duckdb
 import pandas as pd
 
 from tikitaka_dwh.warehouse.migrations.runner import run_migrations
+
+if TYPE_CHECKING:
+    from tikitaka_dwh.sync.watermark import WatermarkStore
 
 logger = logging.getLogger(__name__)
 
@@ -59,11 +62,11 @@ def load_staging_to_warehouse(
     staging_dir: Path,
 ) -> None:
     from tikitaka_dwh.transform.dimensions import (
-        build_dim_store_from_df,
-        build_dim_pos_from_df,
-        build_dim_operator_from_df,
-        build_dim_product_from_df,
         build_dim_customer_from_df,
+        build_dim_operator_from_df,
+        build_dim_pos_from_df,
+        build_dim_product_from_df,
+        build_dim_store_from_df,
     )
 
     df_docs = _read_parquet_dir(staging_dir, "documents")
@@ -77,8 +80,8 @@ def load_staging_to_warehouse(
         # sync so the watermark never advances past un-staged data.
         logger.info("No staging Parquet found — falling back to raw JSON transform.")
         from tikitaka_dwh.transform.documents import build_documents
-        from tikitaka_dwh.transform.sale_lines import build_sale_lines
         from tikitaka_dwh.transform.payments import build_payments
+        from tikitaka_dwh.transform.sale_lines import build_sale_lines
 
         raw_docs = _load_all_raw(staging_dir)
         if not raw_docs:
@@ -126,6 +129,7 @@ def audit_raw(raw_dir: Path) -> dict:  # type: ignore[type-arg]
 
     Returns a dict with keys:
         files         – number of .json files found
+        failed_files  – files that could not be parsed (skipped)
         total_docs    – total document records across all files (with dups)
         unique_ids    – number of distinct doc IDs
         duplicate_docs – total_docs − unique_ids
@@ -135,6 +139,7 @@ def audit_raw(raw_dir: Path) -> dict:  # type: ignore[type-arg]
     import json
 
     files = 0
+    failed_files = 0
     total_docs = 0
     seen_ids: set[int] = set()
 
@@ -149,11 +154,13 @@ def audit_raw(raw_dir: Path) -> dict:  # type: ignore[type-arg]
                     if doc_id is not None:
                         seen_ids.add(int(doc_id))
         except Exception:
+            failed_files += 1
             logger.warning("audit_raw: could not read %s", json_file, exc_info=True)
 
     unique_ids = len(seen_ids)
     return {
         "files": files,
+        "failed_files": failed_files,
         "total_docs": total_docs,
         "unique_ids": unique_ids,
         "duplicate_docs": total_docs - unique_ids,
@@ -165,7 +172,7 @@ def audit_raw(raw_dir: Path) -> dict:  # type: ignore[type-arg]
 def rebuild_from_raw(
     db_path: Path,
     raw_dir: Path,
-    watermark: "WatermarkStore | None" = None,
+    watermark: WatermarkStore | None = None,
     set_watermark: bool = False,
 ) -> dict:  # type: ignore[type-arg]
     """Load every raw JSON file into the warehouse, deduplicating by doc ID.
@@ -187,6 +194,7 @@ def rebuild_from_raw(
     all_docs: dict[int, dict] = {}  # type: ignore[type-arg]
     total_raw = 0
     files_read = 0
+    failed_files = 0
 
     for json_file in sorted(raw_dir.rglob("*.json")):
         files_read += 1
@@ -199,32 +207,34 @@ def rebuild_from_raw(
                     if doc_id is not None:
                         all_docs[int(doc_id)] = doc
         except Exception:
+            failed_files += 1
             logger.warning("rebuild_from_raw: could not read %s", json_file, exc_info=True)
 
     unique = len(all_docs)
     duplicates = total_raw - unique
     logger.info(
-        "rebuild_from_raw: %d files, %d total records, %d unique IDs, %d duplicates",
-        files_read, total_raw, unique, duplicates,
+        "rebuild_from_raw: %d files (%d unreadable), %d total records, %d unique IDs, %d duplicates",
+        files_read, failed_files, total_raw, unique, duplicates,
     )
 
     if not all_docs:
         logger.info("rebuild_from_raw: no documents found — nothing to load.")
         return {
-            "files": files_read, "total_docs": 0, "unique_ids": 0,
-            "duplicate_docs": 0, "min_id": None, "max_id": None, "warehouse_rows": 0,
+            "files": files_read, "failed_files": failed_files, "total_docs": 0,
+            "unique_ids": 0, "duplicate_docs": 0, "min_id": None, "max_id": None,
+            "warehouse_rows": 0,
         }
 
-    from tikitaka_dwh.transform.documents import build_documents
-    from tikitaka_dwh.transform.sale_lines import build_sale_lines
-    from tikitaka_dwh.transform.payments import build_payments
     from tikitaka_dwh.transform.dimensions import (
-        build_dim_store_from_df,
-        build_dim_pos_from_df,
-        build_dim_operator_from_df,
-        build_dim_product_from_df,
         build_dim_customer_from_df,
+        build_dim_operator_from_df,
+        build_dim_pos_from_df,
+        build_dim_product_from_df,
+        build_dim_store_from_df,
     )
+    from tikitaka_dwh.transform.documents import build_documents
+    from tikitaka_dwh.transform.payments import build_payments
+    from tikitaka_dwh.transform.sale_lines import build_sale_lines
 
     doc_list = list(all_docs.values())
     df_docs = build_documents(doc_list)
@@ -253,16 +263,25 @@ def rebuild_from_raw(
     finally:
         con.close()
 
-    # 3. Optionally advance the watermark
+    # 3. Optionally advance the watermark — but never past documents that sit
+    # in unreadable files, or they would silently be lost forever.
     max_id = max(all_docs.keys())
     min_id = min(all_docs.keys())
     if set_watermark and watermark is not None:
-        watermark.set_last_seen_id(max_id)
-        watermark.mark_sync_completed()
-        logger.info("rebuild_from_raw: watermark set to max_id=%d", max_id)
+        if failed_files:
+            logger.warning(
+                "rebuild_from_raw: %d raw file(s) could not be read — watermark NOT "
+                "updated so the missing documents can still be downloaded.",
+                failed_files,
+            )
+        else:
+            watermark.set_last_seen_id(max_id)
+            watermark.mark_sync_completed()
+            logger.info("rebuild_from_raw: watermark set to max_id=%d", max_id)
 
     return {
         "files": files_read,
+        "failed_files": failed_files,
         "total_docs": total_raw,
         "unique_ids": unique,
         "duplicate_docs": duplicates,
@@ -284,7 +303,7 @@ def _read_parquet_dir(staging_dir: Path, table_name: str) -> pd.DataFrame:
     frames = []
     for f in files:
         try:
-            frames.append(pq.ParquetFile(f).read().to_pandas())
+            frames.append(pq.ParquetFile(f).read().to_pandas())  # type: ignore[no-untyped-call]
         except Exception:
             logger.warning("Failed to read staging Parquet %s", f, exc_info=True)
     return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
@@ -293,7 +312,7 @@ def _read_parquet_dir(staging_dir: Path, table_name: str) -> pd.DataFrame:
 def _load_all_raw(staging_dir: Path) -> list[dict]:  # type: ignore[type-arg]
     import json
 
-    docs = []
+    docs: list[dict] = []  # type: ignore[type-arg]
     raw_root = staging_dir.parent / "raw"
     if not raw_root.exists():
         return docs

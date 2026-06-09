@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import altair as alt
 import pandas as pd
 import streamlit as st
@@ -29,7 +31,7 @@ def render() -> None:
         error_card(t("zr_page_error"), exc)
 
 
-def _render_page(filters: dict) -> None:
+def _render_page(filters: dict[str, Any]) -> None:
     z_where, z_params = date_store_pos_where(filters, alias="z")
     s_where, s_params = date_store_pos_where(filters, alias="s")
 
@@ -98,11 +100,7 @@ def _render_page(filters: dict) -> None:
     st.divider()
 
     # ── Daily revenue chart ────────────────────────────────────────────────────
-    daily = (
-        df.groupby("doc_date", as_index=False)["sales_total"]
-        .sum()
-        .rename(columns={"sales_total": "gross"})
-    )
+    daily = df.groupby("doc_date", as_index=False).agg(gross=("sales_total", "sum"))
     daily["doc_date"] = daily["doc_date"].astype(str)
 
     chart = (
@@ -148,7 +146,7 @@ def _render_page(filters: dict) -> None:
 
     match_col = t("zr_col_match")
 
-    def _style_match(val: str) -> str:
+    def _style_match(val: object) -> str:
         if val == "✗":
             return "background-color: #ffcccc"
         if val == "✓":
@@ -170,7 +168,7 @@ def _render_page(filters: dict) -> None:
     st.divider()
 
     # ── VAT summary ────────────────────────────────────────────────────────────
-    vat_rows: list[dict] = []
+    vat_rows: list[dict[str, Any]] = []
     for _, row in df.iterrows():
         for vr in row["vat_rows"]:
             vat_rows.append({

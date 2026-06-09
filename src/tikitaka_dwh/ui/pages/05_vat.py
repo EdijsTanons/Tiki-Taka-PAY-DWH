@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import streamlit as st
 
 from tikitaka_dwh.ui.components import (
@@ -28,7 +30,7 @@ def render() -> None:
         error_card(t("vat_page_error"), exc)
 
 
-def _render_vat_table(filters: dict) -> None:
+def _render_vat_table(filters: dict[str, Any]) -> None:
     where, params = date_store_pos_where(filters, alias="fd")
 
     rate_title_col = t("vat_col_rate_title")
@@ -75,7 +77,7 @@ def _render_vat_table(filters: dict) -> None:
     excel_download_button(df, "vat_summary.xlsx", t("vat_export_excel"))
 
 
-def _render_reconciliation(filters: dict) -> None:
+def _render_reconciliation(filters: dict[str, Any]) -> None:
     where_fd, params_fd = date_store_pos_where(filters)
     where_sl, params_sl = date_store_pos_where(filters, alias="fd")
 
@@ -111,4 +113,4 @@ def _render_reconciliation(filters: dict) -> None:
     if diff <= 0.02:
         c3.metric(t("vat_recon_diff"), f"€ {diff:,.4f}", delta="✓ within tolerance", delta_color="normal")
     else:
-        c3.metric(t("vat_recon_diff"), f"€ {diff:,.4f}", delta=f"⚠ exceeds €0.02", delta_color="inverse")
+        c3.metric(t("vat_recon_diff"), f"€ {diff:,.4f}", delta="⚠ exceeds €0.02", delta_color="inverse")

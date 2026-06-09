@@ -20,7 +20,7 @@ AppDir:
     id: lv.tikitaka.dwh
     name: TikiTakaPAYDWH
     icon: tikitakadwh
-    version: 0.1.0
+    version: 0.2.0
     exec: usr/bin/TikiTakaPAYDWH
     exec_args: $@
 
@@ -61,7 +61,7 @@ AppDir:
 AppImage:
   arch: x86_64
   name: TikiTakaPAYDWH
-  version: 0.1.0
+  version: 0.2.0
   update-information: None
 
   sign-key: None        # set to your GPG key fingerprint to sign the AppImage

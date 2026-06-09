@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+import contextlib
 import logging
 from collections.abc import Iterable
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any
 
 import pandas as pd
@@ -32,10 +33,8 @@ def build_dim_pos(raw_docs: Iterable[dict[str, Any]]) -> pd.DataFrame:
         dt_str = doc.get("doc_datetime")
         ts: Any = None
         if dt_str:
-            try:
+            with contextlib.suppress(Exception):
                 ts = datetime.fromisoformat(dt_str)
-            except Exception:
-                pass
         if pos_id not in seen:
             seen[pos_id] = {"pos_id": pos_id, "device_serial_number": serial, "first_seen": ts, "last_seen": ts}
         else:
@@ -56,10 +55,8 @@ def build_dim_operator(raw_docs: Iterable[dict[str, Any]]) -> pd.DataFrame:
         dt_str = doc.get("doc_datetime")
         ts: Any = None
         if dt_str:
-            try:
+            with contextlib.suppress(Exception):
                 ts = datetime.fromisoformat(dt_str)
-            except Exception:
-                pass
         op_name = doc.get("operator_name")
         if op_id not in seen:
             seen[op_id] = {"operator_id": op_id, "operator_name": op_name, "first_seen": ts, "last_seen": ts}

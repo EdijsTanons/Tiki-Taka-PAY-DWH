@@ -100,7 +100,8 @@ def _check_api(base_url: str) -> tuple[bool, str]:
             return False, str(e)
 
     try:
-        return run_async(_do())
+        result: tuple[bool, str] = run_async(_do())
+        return result
     except Exception as e:
         return False, str(e)
 
@@ -108,13 +109,27 @@ def _check_api(base_url: str) -> tuple[bool, str]:
 def _render_raw_section() -> None:
     """Show raw JSON stats and offer a 'Rebuild from raw' action."""
     from tikitaka_dwh.config import get_settings
-    from tikitaka_dwh.warehouse.db import audit_raw, rebuild_from_raw, initialize_warehouse
+    from tikitaka_dwh.warehouse.db import audit_raw, initialize_warehouse, rebuild_from_raw
 
     settings = get_settings()
     raw_dir = settings.app_data_dir / "lake" / "raw"
     db_path = settings.app_data_dir / "warehouse.duckdb"
 
     st.subheader(t("diag_raw_title"))
+
+    # Result of the previous rebuild, stashed before st.rerun() — shown here
+    # so the success/warning messages survive the rerun.
+    last_result = st.session_state.pop("diag_rebuild_result", None)
+    if last_result:
+        done_msg = t("diag_rebuild_done", rows=last_result["warehouse_rows"])
+        if last_result["set_wm"] and not last_result["failed_files"]:
+            done_msg += t("diag_watermark_set", mid=last_result["max_id"])
+        st.success(done_msg)
+        if last_result["failed_files"]:
+            warn = t("diag_unreadable_files", n=last_result["failed_files"])
+            if last_result["set_wm"]:
+                warn += "  " + t("diag_watermark_skipped")
+            st.warning(warn)
 
     if not raw_dir.exists() or not any(raw_dir.rglob("*.json")):
         st.info(t("diag_no_raw"))
@@ -138,6 +153,9 @@ def _render_raw_section() -> None:
     if stats["min_id"] is not None:
         st.caption(t("diag_doc_id_range", min=f"{stats['min_id']:,}", max=f"{stats['max_id']:,}"))
 
+    if stats["failed_files"]:
+        st.warning(t("diag_unreadable_files", n=stats["failed_files"]))
+
     st.markdown(t("diag_rebuild_info"))
 
     set_wm = st.checkbox(t("diag_update_watermark"), value=False)
@@ -159,10 +177,7 @@ def _render_raw_section() -> None:
                 set_watermark=set_wm,
             )
 
-        done_msg = t("diag_rebuild_done", rows=result["warehouse_rows"])
-        if set_wm:
-            done_msg += t("diag_watermark_set", mid=result["max_id"])
-        st.success(done_msg)
+        st.session_state["diag_rebuild_result"] = {**result, "set_wm": set_wm}
         st.cache_data.clear()
         st.rerun()
 
