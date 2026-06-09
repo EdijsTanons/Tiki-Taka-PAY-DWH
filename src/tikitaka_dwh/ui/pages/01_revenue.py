@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import streamlit as st
 
 from tikitaka_dwh.ui.components import (
@@ -32,7 +34,7 @@ def render() -> None:
         error_card(t("rev_page_error"), exc)
 
 
-def _render_metrics(filters: dict) -> None:
+def _render_metrics(filters: dict[str, Any]) -> None:
     where, params = date_store_pos_where(filters)
     df = query(
         f"""
@@ -66,7 +68,7 @@ def _render_metrics(filters: dict) -> None:
     c4.metric(t("rev_avg_basket"), f"€ {row['avg_basket']:,.2f}" if row["avg_basket"] else "—")
 
 
-def _render_daily_chart(filters: dict) -> None:
+def _render_daily_chart(filters: dict[str, Any]) -> None:
     where, params = date_store_pos_where(filters)
     df = query(
         f"""
@@ -84,7 +86,7 @@ def _render_daily_chart(filters: dict) -> None:
     st.line_chart(df.set_index("doc_date")["gross"])
 
 
-def _render_weekly_bar(filters: dict) -> None:
+def _render_weekly_bar(filters: dict[str, Any]) -> None:
     where, params = date_store_pos_where(filters)
     df = query(
         f"""
@@ -104,7 +106,7 @@ def _render_weekly_bar(filters: dict) -> None:
     st.bar_chart(df.set_index("week_start")["gross"])
 
 
-def _render_table(filters: dict) -> None:
+def _render_table(filters: dict[str, Any]) -> None:
     where, params = date_store_pos_where(filters)
     date_col = t("rev_col_date")
     store_col = t("rev_col_store")

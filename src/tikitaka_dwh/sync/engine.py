@@ -5,9 +5,7 @@ from __future__ import annotations
 import logging
 import uuid
 from collections.abc import Callable
-from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
 
 from tikitaka_dwh.api.client import TikitakaClient
 from tikitaka_dwh.sync.raw_writer import RawWriter
@@ -15,14 +13,14 @@ from tikitaka_dwh.sync.watermark import WatermarkStore
 
 logger = logging.getLogger(__name__)
 
-ProgressCallback = Callable[[int, Optional[int]], None]
+ProgressCallback = Callable[[int, int | None], None]
 
 # Save a resume checkpoint every this many documents.  At 200 docs/page that
 # is 5 pages, so a sleep-interrupted sync loses at most ~1 000 docs of work.
 _CHECKPOINT_EVERY = 1_000
 
 
-def _noop_progress(done: int, total: Optional[int]) -> None:
+def _noop_progress(done: int, total: int | None) -> None:
     pass
 
 
@@ -32,7 +30,7 @@ class SyncEngine:
         client: TikitakaClient,
         raw_dir: Path,
         watermark: WatermarkStore,
-        staging_dir: Optional[Path] = None,
+        staging_dir: Path | None = None,
     ) -> None:
         self._client = client
         self._raw_dir = raw_dir
@@ -43,8 +41,8 @@ class SyncEngine:
         if not self._staging_dir:
             return
         from tikitaka_dwh.transform.documents import build_documents, write_documents_staging
-        from tikitaka_dwh.transform.sale_lines import build_sale_lines, write_sale_lines_staging
         from tikitaka_dwh.transform.payments import build_payments, write_payments_staging
+        from tikitaka_dwh.transform.sale_lines import build_sale_lines, write_sale_lines_staging
 
         df_docs = build_documents(page_buf)
         write_documents_staging(df_docs, self._staging_dir, run_id, seq)
@@ -87,7 +85,7 @@ class SyncEngine:
 
         count = 0          # docs fetched in this call
         seq = 0
-        cur_max_id: Optional[int] = None   # highest ID seen in this call
+        cur_max_id: int | None = None   # highest ID seen in this call
         page_buf: list[dict] = []  # type: ignore[type-arg]
 
         async for doc in self._client.iter_documents(start_skip=start_skip):
@@ -120,7 +118,7 @@ class SyncEngine:
         # older (lower) docs — so we must not overwrite with the resumed max.
         peak_from_prev = self._watermark.get_backfill_peak_id()
         candidates = [x for x in (cur_max_id, peak_from_prev) if x is not None]
-        final_max_id: Optional[int] = max(candidates) if candidates else None
+        final_max_id: int | None = max(candidates) if candidates else None
 
         if final_max_id is not None:
             self._watermark.set_last_seen_id(final_max_id)
@@ -149,7 +147,7 @@ class SyncEngine:
 
         count = 0
         seq = 0
-        max_id: Optional[int] = None
+        max_id: int | None = None
         page_buf: list[dict] = []  # type: ignore[type-arg]
 
         async for doc in self._client.iter_documents(stop_at_id=last_id):

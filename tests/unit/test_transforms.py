@@ -1,15 +1,15 @@
 """Tests for transform layer — documents, sale_lines, payments."""
 
-from tikitaka_dwh.transform.documents import build_documents
-from tikitaka_dwh.transform.sale_lines import build_sale_lines
-from tikitaka_dwh.transform.payments import build_payments
 from tikitaka_dwh.transform.dimensions import (
-    build_dim_store,
-    build_dim_pos,
-    build_dim_operator,
-    build_dim_product,
     build_dim_customer,
+    build_dim_operator,
+    build_dim_pos,
+    build_dim_product,
+    build_dim_store,
 )
+from tikitaka_dwh.transform.documents import build_documents
+from tikitaka_dwh.transform.payments import build_payments
+from tikitaka_dwh.transform.sale_lines import build_sale_lines
 
 
 def test_build_documents_row_count(sample_docs: list):
@@ -37,6 +37,18 @@ def test_build_documents_utc_conversion(sample_docs: list):
     sale_row = df[df["id"] == 1001].iloc[0]
     assert sale_row["doc_datetime_utc"].hour == 8
     assert sale_row["doc_datetime_utc"].minute == 30
+
+
+def test_build_documents_dst_ambiguous_hour(sample_docs: list):
+    # 2024-10-27 03:30 occurs twice in Europe/Riga (clocks fall back 04:00 -> 03:00).
+    # It must still get a UTC timestamp (winter offset, UTC+2), not NULL.
+    doc = dict(sample_docs[0])
+    doc["id"] = 9999
+    doc["doc_datetime"] = "2024-10-27T03:30:00"
+    df = build_documents([doc])
+    row = df[df["id"] == 9999].iloc[0]
+    assert row["doc_datetime_utc"].hour == 1
+    assert row["doc_datetime_utc"].minute == 30
 
 
 def test_build_sale_lines_only_sales(sample_docs: list):

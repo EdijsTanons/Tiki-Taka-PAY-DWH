@@ -100,6 +100,22 @@ makensis packaging\windows\installer.nsi
 
 ## Changelog
 
+### Unreleased
+
+- **fix(ui):** Sunday sales no longer show as "?" in the heatmap — `DAYOFWEEK` (Sunday = 0) replaced with `ISODOW` (Monday = 1 … Sunday = 7)
+- **fix(ui):** dashboard SQL errors are now logged instead of silently rendering as "no data"
+- **fix(transform):** documents timestamped inside the autumn DST fold no longer lose their UTC timestamp (`is_dst=False` instead of raising on ambiguous times)
+- **fix(sync):** backfill checkpoint (skip cursor + peak ID) is now written in a single transaction — a crash can no longer shrink the final watermark
+- **fix(warehouse):** `audit_raw` / `rebuild_from_raw` now report `failed_files`; the watermark is never advanced when raw files could not be read (UI and `build_from_raw.py` surface a warning)
+- **fix(i18n):** onboarding 401 error, "Navigate" label and page-load errors are now translated; rebuild result messages survive the page rerun
+- **fix(security):** Sentry events are now scrubbed recursively (breadcrumbs, extra, exception values) with local variables disabled; the log filter also redacts bearer tokens/JWTs in positional `%s` args
+- **fix(installer):** upgrades now wipe the previous version's files first (guarded by the uninstaller's presence) — stale PyInstaller DLLs no longer survive an update
+- **perf(ui):** dashboard queries are cached (`st.cache_data`, 5 min TTL, cleared after every sync/load)
+- **chore:** GitHub Actions CI (`ruff` + `mypy --strict` + `pytest` on windows-latest); the repo is now ruff- and mypy-clean
+- **chore:** `scripts/bump_version.py` updates the version in all 5 source/packaging locations in one command; macOS/Linux packaging re-synced to the current version
+- **test:** API client (pagination, watermark stop, retry, re-auth, 500-recovery), migration runner and log/Sentry scrubbing are now covered
+- **chore:** removed leftover debug scripts (`scripts/_inspect_z*.py`, `_test_z_parser.py`); added `CLAUDE.md`
+
 ### 0.2.0
 
 - **fix:** staging write failure now fails the sync instead of silently advancing the watermark (potential data-loss bug)

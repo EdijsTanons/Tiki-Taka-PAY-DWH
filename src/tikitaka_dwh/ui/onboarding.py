@@ -96,16 +96,17 @@ def _test_connection(username: str, password: str) -> tuple[bool, str]:
             )
             try:
                 token = await provider.get_token()
-                return True, f"Token acquired (length {len(token)})."
+                return True, t("onb_conn_token_ok", n=len(token))
             except httpx.HTTPStatusError as e:
                 if e.response.status_code == 401:
-                    return False, "Invalid credentials (401). Check your client ID and secret."
+                    return False, t("onb_conn_invalid_401")
                 return False, f"HTTP {e.response.status_code}: {e.response.text[:200]}"
             except Exception as exc:
                 return False, str(exc)
 
     try:
-        return run_async(_do())
+        result: tuple[bool, str] = run_async(_do())
+        return result
     except Exception as exc:
         return False, str(exc)
 
@@ -113,9 +114,9 @@ def _test_connection(username: str, password: str) -> tuple[bool, str]:
 def _run_backfill() -> None:
     import httpx
 
-    from tikitaka_dwh.auth import TokenProvider, load_credentials
     from tikitaka_dwh.api.client import TikitakaClient
-    from tikitaka_dwh.config import get_settings, ensure_app_dirs
+    from tikitaka_dwh.auth import TokenProvider, load_credentials
+    from tikitaka_dwh.config import ensure_app_dirs, get_settings
     from tikitaka_dwh.sync.engine import SyncEngine
     from tikitaka_dwh.sync.watermark import WatermarkStore
     from tikitaka_dwh.warehouse.db import initialize_warehouse, load_staging_to_warehouse
@@ -164,6 +165,7 @@ def _run_backfill() -> None:
         )
         bar.progress(1.0, text=t("onb_sync_done_bar", n=count))
         st.session_state["onb_sync_done"] = True
+        st.cache_data.clear()
         st.rerun()
     except Exception as exc:
         bar.empty()

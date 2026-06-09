@@ -4,24 +4,48 @@ from __future__ import annotations
 
 import logging
 import logging.handlers
+import re
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
 
 _CONFIGURED = False
 
 
 class _AuthScrubFilter(logging.Filter):
-    """Redact Authorization header values from log records."""
+    """Redact credentials from log records.
 
-    _KEYS = {"Authorization", "client_secret", "access_token", "password"}
+    Covers both dict-style and positional %-args plus the message itself —
+    most call sites use ``logger.info("… %s", value)``, which a key-based
+    dict filter alone would never touch.
+    """
+
+    _KEYS: ClassVar[set[str]] = {"Authorization", "client_secret", "access_token", "password"}
+    _TEXT_PATTERNS: ClassVar[tuple[re.Pattern[str], ...]] = (
+        re.compile(r"(?i)\b(bearer\s+)[a-z0-9._~+/=-]+"),
+        re.compile(r"\beyJ[\w-]{8,}\.[\w-]+\.[\w-]*"),  # bare JWT
+    )
 
     def filter(self, record: logging.LogRecord) -> bool:
         if isinstance(record.args, dict):
             record.args = {
-                k: ("***REDACTED***" if k in self._KEYS else v)
+                k: ("***REDACTED***" if k in self._KEYS else self._scrub_value(v))
                 for k, v in record.args.items()
             }
+        elif isinstance(record.args, tuple):
+            record.args = tuple(self._scrub_value(a) for a in record.args)
+        if isinstance(record.msg, str):
+            record.msg = self._scrub_text(record.msg)
         return True
+
+    def _scrub_value(self, value: Any) -> Any:
+        return self._scrub_text(value) if isinstance(value, str) else value
+
+    def _scrub_text(self, text: str) -> str:
+        for pattern in self._TEXT_PATTERNS:
+            text = pattern.sub(
+                lambda m: (m.group(1) if m.groups() else "") + "***REDACTED***", text
+            )
+        return text
 
 
 class _JsonFormatter(logging.Formatter):

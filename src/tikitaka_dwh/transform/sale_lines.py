@@ -5,11 +5,11 @@ from __future__ import annotations
 import logging
 from collections.abc import Iterable
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import pandas as pd
 
-from tikitaka_dwh.transform.decode import normalize_doc_type, extract_dok_veids, decode_text
+from tikitaka_dwh.transform.decode import decode_text, extract_dok_veids, normalize_doc_type
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +31,7 @@ def build_sale_lines(raw_docs: Iterable[dict[str, Any]]) -> pd.DataFrame:
         doc_id = doc.get("id")
         doc_sum = doc.get("doc_sum")
         doc_date_str = doc.get("doc_datetime")
-        doc_date: Optional[Any] = None
+        doc_date: Any | None = None
         if doc_date_str:
             try:
                 from datetime import datetime

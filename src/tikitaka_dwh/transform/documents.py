@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Iterable
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import pandas as pd
 import pytz
@@ -18,22 +18,26 @@ logger = logging.getLogger(__name__)
 _RIGA = pytz.timezone("Europe/Riga")
 
 
-def _to_utc(local_str: Optional[str]) -> Optional[datetime]:
+def _to_utc(local_str: str | None) -> datetime | None:
     if not local_str:
         return None
     try:
         naive = datetime.fromisoformat(local_str)
-        aware = _RIGA.localize(naive, is_dst=None)
-        return aware.astimezone(timezone.utc).replace(tzinfo=None)
+        # is_dst=False instead of None: during the autumn DST fold the
+        # ambiguous hour resolves deterministically to winter time and the
+        # spring gap never raises — otherwise those documents would get a
+        # doc_date but a NULL doc_datetime_utc twice a year.
+        aware: datetime = _RIGA.localize(naive, is_dst=False)
+        return aware.astimezone(UTC).replace(tzinfo=None)
     except Exception:
         return None
 
 
 def build_documents(
     raw_docs: Iterable[dict[str, Any]],
-    ingested_at: Optional[datetime] = None,
+    ingested_at: datetime | None = None,
 ) -> pd.DataFrame:
-    ts = ingested_at or datetime.now(timezone.utc).replace(tzinfo=None)
+    ts = ingested_at or datetime.now(UTC).replace(tzinfo=None)
     rows = []
     for doc in raw_docs:
         doc_datetime_local = doc.get("doc_datetime")

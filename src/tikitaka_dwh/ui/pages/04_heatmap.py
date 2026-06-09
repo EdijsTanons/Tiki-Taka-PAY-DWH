@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import altair as alt
-import pandas as pd
 import streamlit as st
 
 from tikitaka_dwh.ui.components import (
@@ -37,8 +38,9 @@ def render() -> None:
         error_card(t("hm_page_error"), exc)
 
 
-def _render_heatmap(filters: dict, metric: str) -> None:
+def _render_heatmap(filters: dict[str, Any], metric: str) -> None:
     dow_labels = [t("hm_mon"), t("hm_tue"), t("hm_wed"), t("hm_thu"), t("hm_fri"), t("hm_sat"), t("hm_sun")]
+    # Keys follow ISODOW semantics: Monday=1 … Sunday=7 (DAYOFWEEK would give Sunday=0)
     dow_map = {1: t("hm_mon"), 2: t("hm_tue"), 3: t("hm_wed"), 4: t("hm_thu"), 5: t("hm_fri"), 6: t("hm_sat"), 7: t("hm_sun")}
 
     where, params = date_store_pos_where(filters)
@@ -46,7 +48,7 @@ def _render_heatmap(filters: dict, metric: str) -> None:
         f"""
         SELECT
             HOUR(doc_datetime_local)    AS hour_of_day,
-            DAYOFWEEK(doc_date)         AS dow,
+            ISODOW(doc_date)            AS dow,
             COUNT(*)                    AS txn_count,
             SUM(doc_sum)                AS gross
         FROM fct_documents
@@ -91,7 +93,7 @@ def _render_heatmap(filters: dict, metric: str) -> None:
     st.altair_chart(chart, use_container_width=True)
 
 
-def _render_hourly_bar(filters: dict) -> None:
+def _render_hourly_bar(filters: dict[str, Any]) -> None:
     where, params = date_store_pos_where(filters)
     df = query(
         f"""

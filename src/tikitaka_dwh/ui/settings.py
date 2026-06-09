@@ -2,9 +2,6 @@
 
 from __future__ import annotations
 
-import shutil
-from pathlib import Path
-
 import streamlit as st
 
 from tikitaka_dwh.ui.i18n import t
@@ -25,7 +22,7 @@ def render() -> None:
 
 
 def _section_credentials() -> None:
-    from tikitaka_dwh.auth import load_credentials, save_credentials, clear_credentials
+    from tikitaka_dwh.auth import clear_credentials, load_credentials, save_credentials
 
     st.subheader(t("settings_api_creds"))
     creds = load_credentials()

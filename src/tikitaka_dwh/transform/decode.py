@@ -5,7 +5,7 @@ from __future__ import annotations
 import html
 import re
 import xml.etree.ElementTree as ET
-from typing import Any, Optional
+from typing import Any
 
 
 def decode_text(s: str) -> str:
@@ -47,7 +47,7 @@ def parse_doc_xml(xml_str: str) -> dict[str, Any]:
     return result
 
 
-def extract_dok_veids(xml_str: str) -> Optional[str]:
+def extract_dok_veids(xml_str: str) -> str | None:
     attrs = parse_doc_xml(xml_str)
     raw = attrs.get("dok_veids") or attrs.get("dokVeids")
     if raw is None:

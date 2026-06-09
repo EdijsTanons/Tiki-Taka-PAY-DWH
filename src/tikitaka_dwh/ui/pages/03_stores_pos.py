@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import date, timedelta
+from typing import Any
 
 import streamlit as st
 
@@ -33,7 +34,7 @@ def render() -> None:
         error_card(t("stores_page_error"), exc)
 
 
-def _render_store_revenue(filters: dict) -> None:
+def _render_store_revenue(filters: dict[str, Any]) -> None:
     where, params = date_store_pos_where(filters)
     store_col = t("stores_col_store")
     gross_col = t("stores_col_gross")
@@ -49,7 +50,7 @@ def _render_store_revenue(filters: dict) -> None:
         FROM fct_documents
         WHERE doc_type = 'sale' AND {where}
         GROUP BY store_number
-        ORDER BY "{gross_col}" DESC
+        ORDER BY 2 DESC  -- gross; positional because column aliases are translated
         """,
         params,
     )
@@ -61,7 +62,7 @@ def _render_store_revenue(filters: dict) -> None:
     st.dataframe(df, use_container_width=True, hide_index=True)
 
 
-def _render_pos_revenue(filters: dict) -> None:
+def _render_pos_revenue(filters: dict[str, Any]) -> None:
     where, params = date_store_pos_where(filters)
     df = query(
         f"""
@@ -95,7 +96,7 @@ def _render_pos_revenue(filters: dict) -> None:
     st.caption(t("stores_total", n=total))
 
 
-def _render_operator_leaderboard(filters: dict) -> None:
+def _render_operator_leaderboard(filters: dict[str, Any]) -> None:
     where, params = date_store_pos_where(filters)
     df = query(
         f"""
@@ -126,7 +127,7 @@ def _render_operator_leaderboard(filters: dict) -> None:
     st.dataframe(df, use_container_width=True, hide_index=True)
 
 
-def _render_comparison(filters: dict) -> None:
+def _render_comparison(filters: dict[str, Any]) -> None:
     st.subheader(t("stores_period_comp"))
     start = filters["start"]
     end = filters["end"]
@@ -137,7 +138,7 @@ def _render_comparison(filters: dict) -> None:
 
     c1, c2 = st.columns(2)
 
-    def _period_metrics(label: str, pstart, pend, col) -> None:
+    def _period_metrics(label: str, pstart: date, pend: date, col: Any) -> None:
         pf = {**filters, "start": pstart, "end": pend}
         where, params = date_store_pos_where(pf)
         df = query(

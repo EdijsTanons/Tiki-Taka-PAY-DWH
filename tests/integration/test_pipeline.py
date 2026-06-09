@@ -2,17 +2,14 @@
 
 from __future__ import annotations
 
-import json
 import uuid
 from pathlib import Path
 
-import pytest
-
 from tikitaka_dwh.sync.raw_writer import RawWriter
 from tikitaka_dwh.transform.documents import build_documents
-from tikitaka_dwh.transform.sale_lines import build_sale_lines
 from tikitaka_dwh.transform.payments import build_payments
-from tikitaka_dwh.warehouse.db import initialize_warehouse, get_connection, _upsert_df
+from tikitaka_dwh.transform.sale_lines import build_sale_lines
+from tikitaka_dwh.warehouse.db import _upsert_df, get_connection, initialize_warehouse
 
 
 def test_full_pipeline(tmp_path: Path, sample_docs: list):

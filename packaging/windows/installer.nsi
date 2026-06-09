@@ -87,6 +87,15 @@ Section "MainSection" SEC01
     ; Must be first — DLLs are locked while the process runs
     Call CloseRunningApp
 
+    ; On upgrade, wipe the previous version's files first — PyInstaller onedir
+    ; layouts change between releases and stale DLLs/modules break the app.
+    ; Guarded by the uninstaller's presence so a custom $INSTDIR that points
+    ; at a shared folder is never wiped.  User data lives elsewhere
+    ; (%LOCALAPPDATA%\TikiTakaPAYDWH) and is untouched.
+    ${If} ${FileExists} "$INSTDIR\Uninstall.exe"
+        RMDir /r "$INSTDIR"
+    ${EndIf}
+
     SetOutPath "$INSTDIR"
     File /r "${DIST_DIR}\*.*"
 

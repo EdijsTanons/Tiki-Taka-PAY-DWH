@@ -46,6 +46,8 @@ def _app_data_dir() -> Path:
 def _print_stats(stats: dict) -> None:  # type: ignore[type-arg]
     print()
     print("  Raw files found   :", stats["files"])
+    if stats.get("failed_files"):
+        print("  Unreadable files  :", stats["failed_files"], " ← skipped, see app.log")
     print("  Total doc records :", stats["total_docs"])
     print("  Unique doc IDs    :", stats["unique_ids"])
     print("  Duplicate records :", stats["duplicate_docs"])
@@ -116,7 +118,13 @@ def main() -> None:
     )
 
     print(f"\n✓  Done — {result['warehouse_rows']:,} documents loaded.")
-    if args.set_watermark and result["max_id"] is not None:
+    if result.get("failed_files"):
+        print(f"   WARNING: {result['failed_files']} raw file(s) could not be read — the")
+        print("   warehouse may be missing documents (see app.log).")
+    if args.set_watermark and result.get("failed_files"):
+        print("   Watermark NOT updated because of the unreadable files — fix or")
+        print("   delete them and re-run with --set-watermark.")
+    elif args.set_watermark and result["max_id"] is not None:
         print(f"   Watermark set to max_id={result['max_id']}")
     else:
         print("   Watermark NOT updated — the backfill can still resume and")

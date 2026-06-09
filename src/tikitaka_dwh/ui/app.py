@@ -44,8 +44,8 @@ def main() -> None:
 
     from tikitaka_dwh.ui.components import (
         render_sidebar_filters,
-        render_sync_status,
         render_sync_button,
+        render_sync_status,
     )
 
     st.sidebar.title(t("sidebar_title"))
@@ -67,7 +67,7 @@ def main() -> None:
     }
 
     st.sidebar.divider()
-    page = st.sidebar.radio("Navigate", list(pages.keys()), label_visibility="collapsed")
+    page = st.sidebar.radio(t("sidebar_navigate"), list(pages.keys()), label_visibility="collapsed")
     st.session_state["current_page"] = page
 
     if not _warehouse_has_data():
@@ -88,8 +88,9 @@ def _load_page(module_name: str) -> None:
         mod.render()
     except Exception as exc:
         from tikitaka_dwh.ui.components import error_card
+        from tikitaka_dwh.ui.i18n import t
 
-        error_card(f"Page '{module_name}' failed to load", exc)
+        error_card(t("page_load_error", page=module_name), exc)
 
 
 if __name__ == "__main__":

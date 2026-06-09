@@ -2,7 +2,7 @@
 
 import pytest
 
-from tikitaka_dwh.transform.decode import decode_text, normalize_doc_type, extract_dok_veids
+from tikitaka_dwh.transform.decode import decode_text, extract_dok_veids, normalize_doc_type
 
 
 def test_decode_z_parskats():
