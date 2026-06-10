@@ -19,7 +19,7 @@ AppDir:
   app_info:
     id: lv.tikitaka.dwh
     name: TikiTakaPAYDWH
-    icon: tikitakadwh
+    icon: tikitakadwh   # packaging/linux/tikitakadwh.png — regenerate via scripts/create_icons.py
     version: 0.2.0
     exec: usr/bin/TikiTakaPAYDWH
     exec_args: $@
