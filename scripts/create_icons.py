@@ -1,15 +1,18 @@
-"""Generate a minimal Windows ICO file without any third-party dependencies.
+"""Generate the app icon assets without any third-party dependencies.
 
 Usage:
-    python scripts/create_icons.py [output_path]
+    python scripts/create_icons.py [ico_output_path]
 
-Defaults to packaging/windows/icon.ico relative to the repo root.
+By default writes both:
+    packaging/windows/icon.ico          (used by PyInstaller + NSIS)
+    packaging/linux/tikitakadwh.png     (referenced by AppImageBuilder.yml)
 """
 
 from __future__ import annotations
 
 import struct
 import sys
+import zlib
 from pathlib import Path
 
 
@@ -65,8 +68,37 @@ def make_ico(path: Path, size: int = 16, color_bgra: tuple[int, int, int, int] =
     print(f"Created {path}  ({len(ico_header) + len(entry) + len(image_data)} bytes)")
 
 
+def _png_chunk(tag: bytes, data: bytes) -> bytes:
+    return (
+        struct.pack(">I", len(data))
+        + tag
+        + data
+        + struct.pack(">I", zlib.crc32(tag + data) & 0xFFFFFFFF)
+    )
+
+
+def make_png(
+    path: Path, size: int = 256, color_rgba: tuple[int, int, int, int] = (255, 134, 46, 255)
+) -> None:
+    """Write a solid-color PNG (same brand color as the ICO, which stores BGRA)."""
+    r, g, b, a = color_rgba
+    row = b"\x00" + bytes([r, g, b, a]) * size  # filter byte 0 + RGBA pixels
+    ihdr = struct.pack(">IIBBBBB", size, size, 8, 6, 0, 0, 0)  # 8-bit RGBA
+    png = (
+        b"\x89PNG\r\n\x1a\n"
+        + _png_chunk(b"IHDR", ihdr)
+        + _png_chunk(b"IDAT", zlib.compress(row * size, 9))
+        + _png_chunk(b"IEND", b"")
+    )
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(png)
+    print(f"Created {path}  ({len(png)} bytes)")
+
+
 if __name__ == "__main__":
     repo_root = Path(__file__).parent.parent
-    default_out = repo_root / "packaging" / "windows" / "icon.ico"
-    out = Path(sys.argv[1]) if len(sys.argv) > 1 else default_out
-    make_ico(out)
+    if len(sys.argv) > 1:
+        make_ico(Path(sys.argv[1]))
+    else:
+        make_ico(repo_root / "packaging" / "windows" / "icon.ico")
+        make_png(repo_root / "packaging" / "linux" / "tikitakadwh.png")
